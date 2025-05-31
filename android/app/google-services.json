@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "417546562206",
+    "project_id": "app-mitianguis",
+    "storage_bucket": "app-mitianguis.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:417546562206:android:515c86119244a52243298f",
+        "android_client_info": {
+          "package_name": "com.pexel.mi_tianguis"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDikS1R9E2FsuKnjLTOf7a_2GVNNZQE3uA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
