@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Importa Firestore para
 
 
 class ListaNegocios extends StatelessWidget {  
-  ListaNegocios({super.key});  
+  const ListaNegocios({super.key});  
 
   @override
   Widget build(BuildContext context) {
@@ -30,28 +30,42 @@ class ListaNegocios extends StatelessWidget {
 
           final docs = snapshot.data!.docs;
 
-          return ListView.builder(
+          return GridView.builder(
             itemCount: docs.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 5,
+              mainAxisSpacing: 5,
+              childAspectRatio: 1
+            ),
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>; //Datos del documento
               final String nombreNegocio = data['nombre'];
               final String urlImage = data['image'];
 
-              return Card(
-                elevation: 2,
-                child: Column(
-                  children: [
-                    CachedNetworkImage(
-                          imageUrl: urlImage,
-                          height: 150,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                          errorWidget: (context, url, error) => const Icon(Icons.image_not_supported, size: 100),
-                        ),
+              return InkWell(
+                onTap: () {
+                  Navigator.pushNamed(context, 'detallesNegocio', arguments: { 'negocioId': docs[index].id, 'coleccion': coleccion  });
+                },
+                child: Card(
+                  elevation: 2,
+                  child: Column(
+                    children: [
+                      CachedNetworkImage(
+                            imageUrl: urlImage,
+                            height: 150,
+                            fit: BoxFit.contain,
+                            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                            errorWidget: (context, url, error) => const Icon(Icons.image_not_supported, size: 100),
+                          ),
+                        
                       
-                    
-                    Text(nombreNegocio)
-                  ],
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(nombreNegocio),
+                      )
+                    ],
+                  ),
                 ),
               );
             }

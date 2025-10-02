@@ -23,7 +23,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/iconos_categorias/ic_comida.png
-    - assets/iconos_categorias/ic_construccion.png
-    - assets/iconos_categorias/ic_eventos.png
-    - assets/iconos_categorias/ic_tecnologia.png
+    - assets/iconos_categorias/

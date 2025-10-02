@@ -13,9 +13,29 @@ class ProductGrid extends StatelessWidget {
         'coleccion': 'alimentos'
       },
       {
+        'titulo': 'Autos',
+        'image': 'assets/iconos_categorias/ic_autos.png',
+        'coleccion': 'autos'
+      },
+      {
+        'titulo': 'Belleza',
+        'image': 'assets/iconos_categorias/ic_belleza.png',
+        'coleccion': 'belleza'
+      },
+      {
         'titulo': 'Construcción',
         'image': 'assets/iconos_categorias/ic_construccion.png',
         'coleccion': 'construccion'
+      },
+      {
+        'titulo': 'Educación',
+        'image': 'assets/iconos_categorias/ic_educacion.png',
+        'coleccion': 'educacion'
+      },
+      {
+        'titulo': 'Tecnología',
+        'image': 'assets/iconos_categorias/ic_tecnologia.png',
+        'coleccion': 'electronica_y_tecnologia'
       },
       {
         'titulo': 'Eventos',
@@ -23,9 +43,24 @@ class ProductGrid extends StatelessWidget {
         'coleccion': 'eventos'
       },
       {
-        'titulo': 'Electrónica y Tecnología',
-        'image': 'assets/iconos_categorias/ic_tecnologia.png',
-        'coleccion': 'electronica_y_tecnologia'
+        'titulo': 'Hogar',
+        'image': 'assets/iconos_categorias/ic_hogar.png',
+        'coleccion': 'hogar'
+      },
+      {
+        'titulo': 'Salud',
+        'image': 'assets/iconos_categorias/ic_salud.png',
+        'coleccion': 'salud'
+      },
+      {
+        'titulo': 'Servicios',
+        'image': 'assets/iconos_categorias/ic_servicios.png',
+        'coleccion': 'servicios'
+      },
+      {
+        'titulo': 'Tiendas',
+        'image': 'assets/iconos_categorias/ic_tiendas.png',
+        'coleccion': 'tiendas'
       },
     ];
 
