@@ -1,3 +1,6 @@
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class ProductGrid extends StatelessWidget {
@@ -5,217 +8,178 @@ class ProductGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_CategoryItem> products = const [
-      _CategoryItem(
-        titulo: 'Alimentos',
-        image: 'assets/iconos_categorias/ic_comida.png',
-        coleccion: 'alimentos',
-        color: Color(0xFFD96C3F),
-        description: 'Comida casera, antojitos y sabores locales.',
-      ),
-      _CategoryItem(
-        titulo: 'Autos',
-        image: 'assets/iconos_categorias/ic_autos.png',
-        coleccion: 'autos',
-        color: Color(0xFF4D6CFA),
-        description: 'Servicios, refacciones y movilidad.',
-      ),
-      _CategoryItem(
-        titulo: 'Belleza',
-        image: 'assets/iconos_categorias/ic_belleza.png',
-        coleccion: 'belleza',
-        color: Color(0xFFD45D8C),
-        description: 'Estetica, cuidado personal y estilo.',
-      ),
-      _CategoryItem(
-        titulo: 'Construccion',
-        image: 'assets/iconos_categorias/ic_construccion.png',
-        coleccion: 'construccion',
-        color: Color(0xFF9A6B39),
-        description: 'Materiales, herramientas y oficios.',
-      ),
-      _CategoryItem(
-        titulo: 'Educacion',
-        image: 'assets/iconos_categorias/ic_educacion.png',
-        coleccion: 'educacion',
-        color: Color(0xFF2E8B74),
-        description: 'Clases, capacitacion y apoyo escolar.',
-      ),
-      _CategoryItem(
-        titulo: 'Tecnologia',
-        image: 'assets/iconos_categorias/ic_tecnologia.png',
-        coleccion: 'electronica_y_tecnologia',
-        color: Color(0xFF4052B5),
-        description: 'Electronica, reparaciones y accesorios.',
-      ),
-      _CategoryItem(
-        titulo: 'Eventos',
-        image: 'assets/iconos_categorias/ic_eventos.png',
-        coleccion: 'eventos',
-        color: Color(0xFF8E44AD),
-        description: 'Decoracion, musica y celebraciones.',
-      ),
-      _CategoryItem(
-        titulo: 'Hogar',
-        image: 'assets/iconos_categorias/ic_hogar.png',
-        coleccion: 'hogar',
-        color: Color(0xFF3E7C5D),
-        description: 'Articulos utiles para tu casa.',
-      ),
-      _CategoryItem(
-        titulo: 'Salud',
-        image: 'assets/iconos_categorias/ic_salud.png',
-        coleccion: 'salud',
-        color: Color(0xFF0F9D8A),
-        description: 'Bienestar, consultas y cuidado.',
-      ),
-      _CategoryItem(
-        titulo: 'Servicios',
-        image: 'assets/iconos_categorias/ic_servicios.png',
-        coleccion: 'servicios',
-        color: Color(0xFFCC7A00),
-        description: 'Oficios, tramites y ayuda profesional.',
-      ),
-      _CategoryItem(
-        titulo: 'Tiendas',
-        image: 'assets/iconos_categorias/ic_tiendas.png',
-        coleccion: 'tiendas',
-        color: Color(0xFFB84A5A),
-        description: 'Productos, regalos y compras del barrio.',
-      ),
-    ];
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('categorias')
+          .where('activo', isEqualTo: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    final featured = products.first;
-    final spotlight = products.skip(1).take(2).toList();
-    final remaining = products.skip(3).toList();
+        if (snapshot.hasError) {
+          return const _GridStatusView(
+            icon: Icons.cloud_off_rounded,
+            title: 'No se pudieron cargar las categorias',
+            message: 'Revisa tu conexion e intenta nuevamente.',
+          );
+        }
 
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF2D6A4F),
-                      Color(0xFF1B4332),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+        final docs = snapshot.data?.docs ?? [];
+        final categories = docs.map(_CategoryItem.fromDocument).toList();
+
+        if (categories.isEmpty) {
+          return const _GridStatusView(
+            icon: Icons.category_outlined,
+            title: 'Aun no hay categorias',
+            message: 'Agrega documentos en Firestore para mostrar el directorio.',
+          );
+        }
+
+        final random = Random();
+        final featuredIndex = random.nextInt(categories.length);
+        final featured = categories[featuredIndex];
+        final categoriesWithoutFeatured = [
+          ...categories.take(featuredIndex),
+          ...categories.skip(featuredIndex + 1),
+        ];
+        final spotlight = categoriesWithoutFeatured.take(2).toList();
+        final remaining = categoriesWithoutFeatured.skip(2).toList();
+
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF2D6A4F),
+                          Color(0xFF1B4332),
+                        ],
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color.fromRGBO(244, 211, 94, 0.95),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(
-                        'Directorio del barrio',
-                        style: TextStyle(
-                          color: Color(0xFF3A2D00),
-                          fontWeight: FontWeight.w800,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color.fromRGBO(244, 211, 94, 0.95),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'Directorio del barrio',
+                            style: TextStyle(
+                              color: Color(0xFF3A2D00),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Encuentra negocios locales por categoria',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            height: 1.15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '${categories.length} categorias disponibles en Firestore.',
+                          style: const TextStyle(
+                            color: Color(0xFFE7F5EE),
+                            fontSize: 15,
+                            height: 1.45,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Encuentra negocios locales por categoria',
+                  ),
+                  const SizedBox(height: 18),
+                  _FeaturedCategoryCard(category: featured),
+                  if (spotlight.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Row(
+                      children: spotlight
+                          .asMap()
+                          .entries
+                          .map(
+                            (entry) => Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  right: entry.key == 0 && spotlight.length > 1 ? 7 : 0,
+                                  left: entry.key == spotlight.length - 1 && spotlight.length > 1
+                                      ? 7
+                                      : 0,
+                                ),
+                                child: _SpotlightCategoryCard(category: entry.value),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 22),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      'Explora mas categorias',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        height: 1.15,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
+                        color: Color(0xFF1F1F1F),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Explora comercios, servicios y opciones cercanas con una vista mas clara y atractiva.',
+                  ),
+                  const SizedBox(height: 8),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      'Cada categoria te lleva a negocios reales registrados en Firestore.',
                       style: TextStyle(
-                        color: Color(0xFFE7F5EE),
-                        fontSize: 15,
+                        color: Color(0xFF5D6470),
                         height: 1.45,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              _FeaturedCategoryCard(category: featured),
-              const SizedBox(height: 18),
-              Row(
-                children: spotlight
-                    .map(
-                      (category) => Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            right: category == spotlight.first ? 7 : 0,
-                            left: category == spotlight.last ? 7 : 0,
-                          ),
-                          child: SizedBox(
-                            height: 190,
-                            child: _SpotlightCategoryCard(category: category),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 22),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'Explora mas categorias',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1F1F1F),
                   ),
+                  const SizedBox(height: 14),
+                ],
+              ),
+            ),
+            if (remaining.isNotEmpty)
+              SliverGrid(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _CategoryGridCard(category: remaining[index]),
+                  childCount: remaining.length,
+                ),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 0.92,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'Cada categoria te lleva a negocios reales registrados en tu directorio.',
-                  style: TextStyle(
-                    color: Color(0xFF5D6470),
-                    height: 1.45,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-            ],
-          ),
-        ),
-        SliverGrid(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => _CategoryGridCard(category: remaining[index]),
-            childCount: remaining.length,
-          ),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            mainAxisExtent: 220,
-          ),
-        ),
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 18),
-        ),
-      ],
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 18),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -251,9 +215,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
                 height: 190,
                 decoration: BoxDecoration(
                   color: category.color,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(30),
-                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
                 ),
                 child: Stack(
                   children: [
@@ -273,10 +235,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
                       left: 18,
                       top: 18,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
                           color: const Color.fromRGBO(255, 255, 255, 0.92),
                           borderRadius: BorderRadius.circular(999),
@@ -293,11 +252,10 @@ class _FeaturedCategoryCard extends StatelessWidget {
                     Positioned(
                       right: 20,
                       bottom: 14,
-                      child: Image.asset(
-                        category.image,
+                      child: _CategoryImage(
+                        imagePath: category.image,
                         width: 120,
                         height: 120,
-                        fit: BoxFit.contain,
                       ),
                     ),
                     Positioned(
@@ -308,7 +266,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            category.titulo,
+                            category.displayTitle,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 28,
@@ -334,10 +292,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: category.color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
@@ -387,21 +342,19 @@ class _SpotlightCategoryCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Align(
                   alignment: Alignment.topRight,
-                  child: Image.asset(
-                    category.image,
+                  child: _CategoryImage(
+                    imagePath: category.image,
                     width: 56,
                     height: 56,
-                    fit: BoxFit.contain,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const Spacer(),
                 Text(
-                  category.titulo,
+                  category.displayTitle,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -457,43 +410,41 @@ class _CategoryGridCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 54,
-                  height: 54,
+                  width: 58,
+                  height: 58,
                   decoration: BoxDecoration(
                     color: category.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(10),
-                    child: Image.asset(
-                      category.image,
-                      fit: BoxFit.contain,
+                    child: _CategoryImage(
+                      imagePath: category.image,
+                      width: 38,
+                      height: 38,
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const Spacer(),
                 Text(
-                  category.titulo,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  category.displayTitle,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF1F1F1F),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   category.description,
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF5D6470),
-                    height: 1.35,
+                    height: 1.4,
                   ),
                 ),
-                const Spacer(),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Text(
@@ -520,20 +471,150 @@ class _CategoryGridCard extends StatelessWidget {
   }
 }
 
+class _CategoryImage extends StatelessWidget {
+  const _CategoryImage({
+    required this.imagePath,
+    required this.width,
+    required this.height,
+  });
+
+  final String imagePath;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Icon(
+      Icons.category_rounded,
+      size: width,
+      color: Colors.white,
+    );
+
+    if (imagePath.trim().isEmpty) {
+      return fallback;
+    }
+
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return Image.network(
+        imagePath,
+        width: width,
+        height: height,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => fallback,
+      );
+    }
+
+    return Image.asset(
+      imagePath,
+      width: width,
+      height: height,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => fallback,
+    );
+  }
+}
+
+class _GridStatusView extends StatelessWidget {
+  const _GridStatusView({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 56,
+              color: const Color(0xFF7A7A7A),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E1E1E),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 15,
+                color: Color(0xFF666666),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CategoryItem {
   const _CategoryItem({
     required this.titulo,
+    required this.reference,
     required this.image,
-    required this.coleccion,
     required this.color,
     required this.description,
   });
 
   final String titulo;
+  final DocumentReference<Map<String, dynamic>> reference;
   final String image;
-  final String coleccion;
   final Color color;
   final String description;
+
+  String get displayTitle => _capitalizeWords(titulo);
+
+  factory _CategoryItem.fromDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+
+    return _CategoryItem(
+      titulo: (data['titulo'] ?? doc.id) as String,
+      reference: doc.reference,
+      image: ((data['image'] ?? data['imagen']) ?? '') as String,
+      color: _parseColor(data['color']),
+      description: (data['descripcion'] ?? 'Explora negocios en esta categoria.') as String,
+    );
+  }
+
+  static Color _parseColor(dynamic value) {
+    if (value is int) {
+      return Color(value);
+    }
+
+    if (value is String) {
+      final sanitized = value.replaceAll('#', '').trim();
+      if (sanitized.isEmpty) {
+        return const Color(0xFF2D6A4F);
+      }
+
+      final normalized = sanitized.length == 6 ? 'FF$sanitized' : sanitized;
+      final parsed = int.tryParse(normalized, radix: 16);
+      if (parsed != null) {
+        return Color(parsed);
+      }
+    }
+
+    return const Color(0xFF2D6A4F);
+  }
 }
 
 void _openCategory(BuildContext context, _CategoryItem category) {
@@ -541,8 +622,25 @@ void _openCategory(BuildContext context, _CategoryItem category) {
     context,
     'listaNegocios',
     arguments: {
-      'productColeccion': category.coleccion,
-      'productTitulo': category.titulo,
+      'productTitulo': category.displayTitle,
+      'categoriaRef': category.reference,
     },
   );
+}
+
+String _capitalizeWords(String value) {
+  final normalized = value.trim();
+  if (normalized.isEmpty) {
+    return value;
+  }
+
+  return normalized
+      .split(RegExp(r'\s+'))
+      .map((word) {
+        if (word.isEmpty) {
+          return word;
+        }
+        return '${word[0].toUpperCase()}${word.substring(1)}';
+      })
+      .join(' ');
 }

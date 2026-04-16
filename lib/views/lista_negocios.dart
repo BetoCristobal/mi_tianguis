@@ -11,13 +11,27 @@ class ListaNegocios extends StatelessWidget {
   Widget build(BuildContext context) {
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    final String titulo = args['productTitulo'];
-    final String coleccion = args['productColeccion'];
+    final String titulo = args['productTitulo'] as String? ?? 'Categoria';
+    final DocumentReference<Map<String, dynamic>>? categoriaRef =
+        args['categoriaRef'] as DocumentReference<Map<String, dynamic>>?;
+
+    if (categoriaRef == null) {
+      return const _ListaStatusView(
+        titulo: 'Categoria',
+        icon: Icons.category_outlined,
+        title: 'Falta informacion de la categoria',
+        message: 'No se pudo identificar la categoria seleccionada.',
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F0E8),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection(coleccion).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('negocios')
+            .where('activo', isEqualTo: true)
+            .where('categoria', isEqualTo: categoriaRef)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -124,10 +138,7 @@ class ListaNegocios extends StatelessWidget {
                       Navigator.pushNamed(
                         context,
                         'detallesNegocio',
-                        arguments: {
-                          'negocioId': featuredDoc.id,
-                          'coleccion': coleccion,
-                        },
+                        arguments: {'negocioId': featuredDoc.id},
                       );
                     },
                   ),
@@ -154,26 +165,19 @@ class ListaNegocios extends StatelessWidget {
                     (context, index) {
                       final doc = otherDocs[index];
                       final data = doc.data();
-                      final String nombre = (data['nombre'] ?? 'Sin nombre') as String;
-                      final String descripcion = (data['descripcion'] ?? '') as String;
-                      final String direccion = (data['direccion'] ?? '') as String;
-                      final String imageUrl = (data['image'] ?? '') as String;
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _BusinessListTile(
-                          nombre: nombre,
-                          descripcion: descripcion,
-                          direccion: direccion,
-                          imageUrl: imageUrl,
+                          nombre: (data['nombre'] ?? 'Sin nombre') as String,
+                          descripcion: (data['descripcion'] ?? '') as String,
+                          direccion: (data['direccion'] ?? '') as String,
+                          imageUrl: _readImage(data),
                           onTap: () {
                             Navigator.pushNamed(
                               context,
                               'detallesNegocio',
-                              arguments: {
-                                'negocioId': doc.id,
-                                'coleccion': coleccion,
-                              },
+                              arguments: {'negocioId': doc.id},
                             );
                           },
                         ),
@@ -191,6 +195,10 @@ class ListaNegocios extends StatelessWidget {
   }
 }
 
+String _readImage(Map<String, dynamic> data) {
+  return ((data['image'] ?? data['imagen']) ?? '') as String;
+}
+
 class _FeaturedBusinessCard extends StatelessWidget {
   const _FeaturedBusinessCard({
     required this.doc,
@@ -206,7 +214,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
     final String nombre = (data['nombre'] ?? 'Sin nombre') as String;
     final String descripcion = (data['descripcion'] ?? '') as String;
     final String direccion = (data['direccion'] ?? '') as String;
-    final String imageUrl = (data['image'] ?? '') as String;
+    final String imageUrl = _readImage(data);
 
     return Material(
       color: Colors.transparent,
@@ -264,10 +272,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                         left: 18,
                         top: 18,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 7,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
                             color: const Color.fromRGBO(255, 243, 212, 0.96),
                             borderRadius: BorderRadius.circular(999),
@@ -338,10 +343,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 9,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF6E8DA),
                             borderRadius: BorderRadius.circular(14),

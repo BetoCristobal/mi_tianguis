@@ -31,7 +31,8 @@ class DetallesNegocioScreen extends StatelessWidget {
 
   Future<void> _openWhatsApp(String phone) async {
     final sanitized = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    final whatsappUri = Uri.parse('https://wa.me/${sanitized.replaceAll('+', '')}');
+    final whatsappUri =
+        Uri.parse('https://wa.me/${sanitized.replaceAll('+', '')}');
 
     if (await canLaunchUrl(whatsappUri)) {
       await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
@@ -40,11 +41,11 @@ class DetallesNegocioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+    final args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
     final String? negocioId = args?['negocioId'] as String?;
-    final String? coleccion = args?['coleccion'] as String?;
 
-    if (negocioId == null || negocioId.isEmpty || coleccion == null || coleccion.isEmpty) {
+    if (negocioId == null || negocioId.isEmpty) {
       return const Scaffold(
         body: Center(
           child: Text('Faltan argumentos para cargar el negocio'),
@@ -55,14 +56,17 @@ class DetallesNegocioScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F3EE),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection(coleccion).doc(negocioId).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('negocios')
+            .doc(negocioId)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return _StatusView(
+            return const _StatusView(
               icon: Icons.wifi_off_rounded,
               title: 'No se pudo cargar el negocio',
               message: 'Revisa tu conexion e intenta nuevamente.',
@@ -70,7 +74,7 @@ class DetallesNegocioScreen extends StatelessWidget {
           }
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return _StatusView(
+            return const _StatusView(
               icon: Icons.storefront_outlined,
               title: 'Negocio no disponible',
               message: 'No se encontro informacion para este negocio.',
@@ -82,12 +86,13 @@ class DetallesNegocioScreen extends StatelessWidget {
           final String descripcion = (data['descripcion'] ?? '') as String;
           final String direccion = (data['direccion'] ?? '') as String;
           final String whatsapp = (data['whatsapp'] ?? '') as String;
-          final String? imageUrl = data['image'] as String?;
+          final String imageUrl = ((data['image'] ?? data['imagen']) ?? '') as String;
 
           final GeoPoint? gp = data['coordenadas'] as GeoPoint?;
           final double? lat = gp?.latitude;
           final double? lng = gp?.longitude;
-          final bool hasMapLocation = lat != null && lng != null;
+          final bool hasMapLocation =
+              lat != null && lng != null && !(lat == 0 && lng == 0);
           final bool hasWhatsApp = whatsapp.trim().isNotEmpty;
 
           return CustomScrollView(
@@ -101,7 +106,7 @@ class DetallesNegocioScreen extends StatelessWidget {
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (imageUrl != null && imageUrl.isNotEmpty)
+                      if (imageUrl.isNotEmpty)
                         CachedNetworkImage(
                           imageUrl: imageUrl,
                           fit: BoxFit.cover,
@@ -199,8 +204,8 @@ class DetallesNegocioScreen extends StatelessWidget {
                               label: 'Como llegar',
                               color: const Color(0xFFB5651D),
                               onTap: () => _openInMaps(
-                                lat,
-                                lng,
+                                lat!,
+                                lng!,
                                 label: nombre.isEmpty ? 'Negocio' : nombre,
                               ),
                             ),
@@ -284,8 +289,8 @@ class DetallesNegocioScreen extends StatelessWidget {
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
                                   onPressed: () => _openInMaps(
-                                    lat,
-                                    lng,
+                                    lat!,
+                                    lng!,
                                     label: nombre.isEmpty ? 'Negocio' : nombre,
                                   ),
                                   style: ElevatedButton.styleFrom(
