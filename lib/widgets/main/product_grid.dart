@@ -33,7 +33,8 @@ class ProductGrid extends StatelessWidget {
           return const _GridStatusView(
             icon: Icons.category_outlined,
             title: 'Aun no hay categorias',
-            message: 'Agrega documentos en Firestore para mostrar el directorio.',
+            message:
+                'Agrega documentos en Firestore para mostrar el directorio.',
           );
         }
 
@@ -44,8 +45,7 @@ class ProductGrid extends StatelessWidget {
           ...categories.take(featuredIndex),
           ...categories.skip(featuredIndex + 1),
         ];
-        final spotlight = categoriesWithoutFeatured.take(2).toList();
-        final remaining = categoriesWithoutFeatured.skip(2).toList();
+        final remaining = categoriesWithoutFeatured;
 
         return CustomScrollView(
           slivers: [
@@ -112,28 +112,6 @@ class ProductGrid extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   _FeaturedCategoryCard(category: featured),
-                  if (spotlight.isNotEmpty) ...[
-                    const SizedBox(height: 18),
-                    Row(
-                      children: spotlight
-                          .asMap()
-                          .entries
-                          .map(
-                            (entry) => Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  right: entry.key == 0 && spotlight.length > 1 ? 7 : 0,
-                                  left: entry.key == spotlight.length - 1 && spotlight.length > 1
-                                      ? 7
-                                      : 0,
-                                ),
-                                child: _SpotlightCategoryCard(category: entry.value),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ],
                   const SizedBox(height: 22),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
@@ -162,16 +140,28 @@ class ProductGrid extends StatelessWidget {
               ),
             ),
             if (remaining.isNotEmpty)
-              SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => _CategoryGridCard(category: remaining[index]),
-                  childCount: remaining.length,
-                ),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  childAspectRatio: 0.92,
+              SliverToBoxAdapter(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final bool useTwoColumns = constraints.maxWidth >= 560;
+                    final double spacing = 12;
+                    final double cardWidth = useTwoColumns
+                        ? (constraints.maxWidth - spacing) / 2
+                        : constraints.maxWidth;
+
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: remaining
+                          .map(
+                            (category) => SizedBox(
+                              width: cardWidth,
+                              child: _CategoryCatalogCard(category: category),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  },
                 ),
               ),
             const SliverToBoxAdapter(
@@ -215,7 +205,8 @@ class _FeaturedCategoryCard extends StatelessWidget {
                 height: 190,
                 decoration: BoxDecoration(
                   color: category.color,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(30)),
                 ),
                 child: Stack(
                   children: [
@@ -235,7 +226,8 @@ class _FeaturedCategoryCard extends StatelessWidget {
                       left: 18,
                       top: 18,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
                           color: const Color.fromRGBO(255, 255, 255, 0.92),
                           borderRadius: BorderRadius.circular(999),
@@ -292,7 +284,8 @@ class _FeaturedCategoryCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: category.color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
@@ -322,8 +315,8 @@ class _FeaturedCategoryCard extends StatelessWidget {
   }
 }
 
-class _SpotlightCategoryCard extends StatelessWidget {
-  const _SpotlightCategoryCard({required this.category});
+class _CategoryCatalogCard extends StatelessWidget {
+  const _CategoryCatalogCard({required this.category});
 
   final _CategoryItem category;
 
@@ -336,131 +329,106 @@ class _SpotlightCategoryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Ink(
           decoration: BoxDecoration(
-            color: category.color,
+            color: category.color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(24),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Align(
-                  alignment: Alignment.topRight,
-                  child: _CategoryImage(
-                    imagePath: category.image,
-                    width: 56,
-                    height: 56,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  category.displayTitle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  category.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFF5F5F5),
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryGridCard extends StatelessWidget {
-  const _CategoryGridCard({required this.category});
-
-  final _CategoryItem category;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _openCategory(context, category),
-        borderRadius: BorderRadius.circular(26),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(26),
             boxShadow: const [
               BoxShadow(
-                color: Color.fromRGBO(53, 54, 66, 0.07),
-                blurRadius: 20,
-                offset: Offset(0, 10),
+                color: Color.fromRGBO(53, 54, 66, 0.08),
+                blurRadius: 22,
+                offset: Offset(0, 12),
               ),
             ],
+            border: Border.all(
+              color: const Color.fromRGBO(234, 226, 216, 0.95),
+            ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+            padding: const EdgeInsets.all(14),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 58,
-                  height: 58,
+                  width: 68,
+                  height: 68,
                   decoration: BoxDecoration(
-                    color: category.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(18),
+                    color: Colors.white.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: category.color.withValues(alpha: 0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     child: _CategoryImage(
                       imagePath: category.image,
-                      width: 38,
-                      height: 38,
+                      width: 40,
+                      height: 40,
+                      iconColor: category.color,
                     ),
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  category.displayTitle,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1F1F1F),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  category.description,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF5D6470),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Text(
-                      'Entrar',
-                      style: TextStyle(
-                        color: category.color,
-                        fontWeight: FontWeight.w700,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        category.displayTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 17.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF182028),
+                          height: 1.15,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      color: category.color,
-                      size: 16,
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        category.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: Color(0xFF48515B),
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Explorar',
+                              style: TextStyle(
+                                color: category.color,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: category.color,
+                              size: 18,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -476,18 +444,20 @@ class _CategoryImage extends StatelessWidget {
     required this.imagePath,
     required this.width,
     required this.height,
+    this.iconColor = Colors.white,
   });
 
   final String imagePath;
   final double width;
   final double height;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     final fallback = Icon(
       Icons.category_rounded,
       size: width,
-      color: Colors.white,
+      color: iconColor,
     );
 
     if (imagePath.trim().isEmpty) {
@@ -591,7 +561,8 @@ class _CategoryItem {
       reference: doc.reference,
       image: ((data['image'] ?? data['imagen']) ?? '') as String,
       color: _parseColor(data['color']),
-      description: (data['descripcion'] ?? 'Explora negocios en esta categoria.') as String,
+      description: (data['descripcion'] ??
+          'Explora negocios en esta categoria.') as String,
     );
   }
 
@@ -634,13 +605,10 @@ String _capitalizeWords(String value) {
     return value;
   }
 
-  return normalized
-      .split(RegExp(r'\s+'))
-      .map((word) {
-        if (word.isEmpty) {
-          return word;
-        }
-        return '${word[0].toUpperCase()}${word.substring(1)}';
-      })
-      .join(' ');
+  return normalized.split(RegExp(r'\s+')).map((word) {
+    if (word.isEmpty) {
+      return word;
+    }
+    return '${word[0].toUpperCase()}${word.substring(1)}';
+  }).join(' ');
 }

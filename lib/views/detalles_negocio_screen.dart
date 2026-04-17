@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -30,13 +31,118 @@ class DetallesNegocioScreen extends StatelessWidget {
   }
 
   Future<void> _openWhatsApp(String phone) async {
-    final sanitized = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    final whatsappUri =
-        Uri.parse('https://wa.me/${sanitized.replaceAll('+', '')}');
+    final digits = _normalizePhone(phone);
 
-    if (await canLaunchUrl(whatsappUri)) {
-      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+    if (digits == null) {
+      return;
     }
+
+    final appUri = Uri.parse('whatsapp://send?phone=$digits');
+    if (await launchUrl(
+      appUri,
+      mode: LaunchMode.externalNonBrowserApplication,
+    )) {
+      return;
+    }
+
+    final webUri = Uri.parse('https://api.whatsapp.com/send?phone=$digits');
+    if (await launchUrl(webUri, mode: LaunchMode.externalApplication)) {
+      return;
+    }
+  }
+
+  Future<void> _openFacebook(String value) async {
+    final normalized = _normalizeFacebookUrl(value);
+    if (normalized == null) {
+      return;
+    }
+
+    final appUri = Uri.parse(
+      'fb://facewebmodal/f?href=${Uri.encodeComponent(normalized)}',
+    );
+    if (await launchUrl(
+      appUri,
+      mode: LaunchMode.externalNonBrowserApplication,
+    )) {
+      return;
+    }
+
+    final webUri = Uri.parse(normalized);
+    if (await launchUrl(webUri, mode: LaunchMode.externalApplication)) {
+      return;
+    }
+  }
+
+  Future<void> _openExternalLink(String url) async {
+    final normalized = _normalizeUrl(url);
+    if (normalized == null) {
+      return;
+    }
+
+    final uri = Uri.parse(normalized);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  String? _normalizePhone(String phone) {
+    final sanitized = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final digits = sanitized.replaceAll('+', '');
+    if (digits.isEmpty) {
+      return null;
+    }
+    return digits;
+  }
+
+  String? _normalizeUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+
+    return 'https://$trimmed';
+  }
+
+  String? _normalizeFacebookUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    if (trimmed.startsWith('fb://')) {
+      return null;
+    }
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+
+    final cleaned = trimmed.replaceFirst('@', '');
+    if (cleaned.contains('facebook.com/')) {
+      return 'https://$cleaned';
+    }
+
+    return 'https://www.facebook.com/$cleaned';
+  }
+
+  String? _normalizeInstagramUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+
+    final cleaned = trimmed.replaceFirst('@', '');
+    if (cleaned.contains('instagram.com/')) {
+      return 'https://$cleaned';
+    }
+
+    return 'https://www.instagram.com/$cleaned/';
   }
 
   @override
@@ -86,14 +192,27 @@ class DetallesNegocioScreen extends StatelessWidget {
           final String descripcion = (data['descripcion'] ?? '') as String;
           final String direccion = (data['direccion'] ?? '') as String;
           final String whatsapp = (data['whatsapp'] ?? '') as String;
-          final String imageUrl = ((data['image'] ?? data['imagen']) ?? '') as String;
+          final String facebook = (data['facebook'] ?? '') as String;
+          final String instagram = (data['instagram'] ?? '') as String;
+          final String imageUrl =
+              ((data['image'] ?? data['imagen']) ?? '') as String;
+          final List<String> servicios =
+              ((data['productos_servicios'] as List<dynamic>?) ?? [])
+              .map((item) => item.toString().trim())
+              .where((item) => item.isNotEmpty)
+              .toList();
 
           final GeoPoint? gp = data['coordenadas'] as GeoPoint?;
           final double? lat = gp?.latitude;
           final double? lng = gp?.longitude;
           final bool hasMapLocation =
               lat != null && lng != null && !(lat == 0 && lng == 0);
-          final bool hasWhatsApp = whatsapp.trim().isNotEmpty;
+          final String? whatsappPhone = _normalizePhone(whatsapp);
+          final String? facebookUrl = _normalizeFacebookUrl(facebook);
+          final String? instagramUrl = _normalizeInstagramUrl(instagram);
+          final bool hasWhatsApp = whatsappPhone != null;
+          final bool hasFacebook = facebookUrl != null;
+          final bool hasInstagram = instagramUrl != null;
 
           return CustomScrollView(
             slivers: [
@@ -112,7 +231,9 @@ class DetallesNegocioScreen extends StatelessWidget {
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
                             color: const Color(0xFFE9E1D5),
-                            child: const Center(child: CircularProgressIndicator()),
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                           ),
                           errorWidget: (context, url, error) => _HeaderFallback(
                             title: nombre,
@@ -140,7 +261,10 @@ class DetallesNegocioScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF4D35E),
                                 borderRadius: BorderRadius.circular(999),
@@ -193,19 +317,45 @@ class DetallesNegocioScreen extends StatelessWidget {
                         children: [
                           if (hasWhatsApp)
                             _ActionChip(
-                              icon: Icons.chat_bubble_rounded,
+                              icon: const FaIcon(
+                                FontAwesomeIcons.whatsapp,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                               label: 'WhatsApp',
                               color: const Color(0xFF1FA855),
-                              onTap: () => _openWhatsApp(whatsapp),
+                              onTap: () => _openWhatsApp(whatsappPhone),
+                            ),
+                          if (hasFacebook)
+                            _ActionChip(
+                              icon: const FaIcon(
+                                FontAwesomeIcons.facebookF,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              label: 'Facebook',
+                              color: const Color(0xFF1877F2),
+                              onTap: () => _openFacebook(facebookUrl),
+                            ),
+                          if (hasInstagram)
+                            _ActionChip(
+                              icon: const FaIcon(
+                                FontAwesomeIcons.instagram,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              label: 'Instagram',
+                              color: const Color(0xFFE1306C),
+                              onTap: () => _openExternalLink(instagramUrl),
                             ),
                           if (hasMapLocation)
                             _ActionChip(
-                              icon: Icons.map_rounded,
-                              label: 'Como llegar',
-                              color: const Color(0xFFB5651D),
+                              icon: const _MapsPinIcon(),
+                              label: 'Ubicación',
+                              color: const Color.fromARGB(255, 255, 174, 0),
                               onTap: () => _openInMaps(
-                                lat!,
-                                lng!,
+                                lat,
+                                lng,
                                 label: nombre.isEmpty ? 'Negocio' : nombre,
                               ),
                             ),
@@ -226,86 +376,48 @@ class DetallesNegocioScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      _InfoSection(
-                        title: 'Contacto y ubicacion',
-                        icon: Icons.store_mall_directory_outlined,
-                        child: Column(
-                          children: [
-                            _DetailRow(
-                              icon: Icons.location_on_outlined,
-                              label: 'Direccion',
-                              value: direccion.trim().isEmpty
-                                  ? 'No disponible'
-                                  : direccion,
-                            ),
-                            const SizedBox(height: 14),
-                            _DetailRow(
-                              icon: Icons.phone_rounded,
-                              label: 'WhatsApp',
-                              value: hasWhatsApp ? whatsapp : 'No disponible',
-                              accent: hasWhatsApp,
-                              onTap: hasWhatsApp ? () => _openWhatsApp(whatsapp) : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (hasMapLocation) ...[
+                      if (servicios.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _InfoSection(
-                          title: 'Ubicacion',
-                          icon: Icons.map_outlined,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEDE3D2),
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.place_rounded,
-                                      color: Color(0xFF7A4E1D),
+                          title: 'Productos/Servicios',
+                          icon: Icons.inventory_2_outlined,
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: servicios
+                                .map(
+                                  (servicio) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
                                     ),
-                                    SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        'La ubicacion del negocio esta lista para abrirse en tu app de mapas.',
-                                        style: TextStyle(
-                                          color: Color(0xFF5D4631),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: () => _openInMaps(
-                                    lat!,
-                                    lng!,
-                                    label: nombre.isEmpty ? 'Negocio' : nombre,
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1B4332),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8F4EC),
                                       borderRadius: BorderRadius.circular(16),
                                     ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle_rounded,
+                                          size: 18,
+                                          color: Color(0xFF1B4332),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            servicio,
+                                            style: const TextStyle(
+                                              color: Color(0xFF2B2B2B),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  icon: const Icon(Icons.navigation_rounded),
-                                  label: const Text('Abrir en Maps'),
-                                ),
-                              ),
-                            ],
+                                )
+                                .toList(),
                           ),
                         ),
                       ],
@@ -418,94 +530,6 @@ class _InfoSection extends StatelessWidget {
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.accent = false,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool accent;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final row = Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F5EF),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: accent ? const Color(0xFFDDF5E5) : const Color(0xFFE8ECEF),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: accent ? const Color(0xFF1FA855) : const Color(0xFF44515C),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: accent ? FontWeight.w700 : FontWeight.w500,
-                    color: accent ? const Color(0xFF167A3E) : const Color(0xFF222222),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (onTap != null)
-            const Padding(
-              padding: EdgeInsets.only(left: 8, top: 8),
-              child: Icon(
-                Icons.open_in_new_rounded,
-                size: 18,
-                color: Color(0xFF7A7A7A),
-              ),
-            ),
-        ],
-      ),
-    );
-
-    if (onTap == null) {
-      return row;
-    }
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: row,
-    );
-  }
-}
-
 class _ActionChip extends StatelessWidget {
   const _ActionChip({
     required this.icon,
@@ -514,7 +538,7 @@ class _ActionChip extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
@@ -528,22 +552,74 @@ class _ActionChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
+              icon,
+              const SizedBox(width: 8),
               Text(
                 label,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MapsPinIcon extends StatelessWidget {
+  const _MapsPinIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 16,
+      height: 16,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Positioned(
+            top: 0,
+            child: Icon(
+              Icons.location_pin,
+              size: 16,
+              color: Color(0xFFEA4335),
+            ),
+          ),
+          const Positioned(
+            top: 5,
+            child: Icon(
+              Icons.circle,
+              size: 4,
+              color: Color(0xFF4285F4),
+            ),
+          ),
+          const Positioned(
+            top: 3,
+            left: 3,
+            child: Icon(
+              Icons.circle,
+              size: 3.5,
+              color: Color(0xFFFBBC05),
+            ),
+          ),
+          const Positioned(
+            top: 3,
+            right: 3,
+            child: Icon(
+              Icons.circle,
+              size: 3.5,
+              color: Color(0xFF34A853),
+            ),
+          ),
+        ],
       ),
     );
   }
