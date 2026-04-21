@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arquitectura Mi Tianguis</title>
+  <style>
+    :root {
+      --bg: #f6f1e8;
+      --paper: #fffdf9;
+      --ink: #1f2933;
+      --muted: #5c6670;
+      --accent: #1b4332;
+      --accent-2: #d96c3f;
+      --line: #d8d2c6;
+      --soft: #eef4ef;
+      --warn: #fff2d8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, #efe3d1 0, transparent 24%),
+        linear-gradient(180deg, #f3ede3 0%, var(--bg) 100%);
+    }
+
+    .page {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 36px 28px 52px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
+      color: white;
+      border-radius: 28px;
+      padding: 30px 32px;
+      box-shadow: 0 22px 48px rgba(27, 67, 50, 0.18);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 34px;
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.92);
+    }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid rgba(216, 210, 198, 0.9);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 12px 30px rgba(54, 62, 69, 0.08);
+      margin-bottom: 20px;
+      break-inside: avoid;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      color: var(--accent);
+    }
+
+    h3 {
+      margin: 18px 0 10px;
+      font-size: 18px;
+      color: #243b35;
+    }
+
+    p, li {
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--ink);
+    }
+
+    ul, ol {
+      margin: 10px 0 0 20px;
+      padding: 0;
+    }
+
+    .muted { color: var(--muted); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .diagram {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .node {
+      flex: 1 1 180px;
+      border-radius: 18px;
+      padding: 14px 16px;
+      background: white;
+      border: 1px solid var(--line);
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .node.soft { background: var(--soft); }
+    .node.warn { background: var(--warn); }
+    .node.accent { background: #edf6f1; border-color: #bdd7c8; }
+
+    .arrow {
+      text-align: center;
+      font-size: 26px;
+      color: var(--accent);
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      padding: 16px;
+      border-radius: 18px;
+      background: #f7f5f0;
+      border: 1px solid #e2ddd1;
+      font-size: 13px;
+      line-height: 1.55;
+      overflow: hidden;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f6e8da;
+      color: #7a3e2b;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .table th, .table td {
+      border: 1px solid #ddd7ca;
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    .table th {
+      background: #f5efe6;
+      color: #294136;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 18px;
+    }
+
+    @media print {
+      body { background: white; }
+      .page { padding: 16px; max-width: none; }
+      .hero, .card { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>Mi Tianguis<br />Arquitectura de Sincronización Incremental</h1>
+      <p>Documento de referencia para entender cómo la app ahorra lecturas de Firestore, cómo se sincroniza la base local del dispositivo y qué debes actualizar en Firebase cuando agregas o editas categorías y negocios.</p>
+    </section>
+
+    <section class="card">
+      <span class="pill">Resumen</span>
+      <h2>Qué resuelve esta arquitectura</h2>
+      <ul>
+        <li>La app ya no usa listeners en tiempo real sobre colecciones grandes.</li>
+        <li>Primero carga datos desde caché local del dispositivo.</li>
+        <li>Después revisa un documento pequeño en <strong>app_meta/sync</strong>.</li>
+        <li>Si detecta cambios, solo descarga los documentos con <strong>actualizado &gt; último sync local</strong>.</li>
+        <li>La barra de búsqueda usa la copia local sincronizada en memoria.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Diagrama General</h2>
+      <div class="diagram">
+        <div class="row">
+          <div class="node accent">Usuario abre la app</div>
+          <div class="node accent">FirestoreService</div>
+          <div class="node soft">Caché local del dispositivo</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="row">
+          <div class="node">Lee categorías y negocios desde caché local</div>
+          <div class="node warn">Consulta app_meta/sync</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="row">
+          <div class="node soft">Si no hubo cambios: usa la base local</div>
+          <div class="node soft">Si hubo cambios: pide solo docs con actualizado reciente</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="row">
+          <div class="node accent">Actualiza memoria local</div>
+          <div class="node accent">Pantallas: Principal, Categorías, Lista, Detalle</div>
+          <div class="node accent">Búsqueda local</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Flujo de sincronización</h2>
+      <div class="diagram">
+        <div class="row">
+          <div class="node">1. Cargar caché local</div>
+          <div class="node">2. Leer app_meta/sync</div>
+          <div class="node">3. Comparar timestamps guardados</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="row">
+          <div class="node soft">Sin cambios<br />No descarga colecciones completas</div>
+          <div class="node warn">Con cambios<br />Descarga solo docs modificados</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="row">
+          <div class="node">4. Mezclar cambios en memoria local</div>
+          <div class="node">5. Guardar último sync local</div>
+          <div class="node">6. UI usa datos locales</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Estructura en Firestore</h2>
+
+      <h3>Documento global de sincronización</h3>
+      <pre>app_meta
+  sync
+    categoriasUpdatedAt: Timestamp
+    negociosUpdatedAt: Timestamp</pre>
+
+      <h3>Colección de categorías</h3>
+      <pre>categorias
+  alimentos
+    titulo: "Alimentos"
+    slug: "alimentos"
+    descripcion: "Comida casera, antojitos y sabores locales."
+    imagen: "https://..."
+    activo: true
+    color: "#D96C3F"
+    actualizado: Timestamp</pre>
+
+      <h3>Colección de negocios</h3>
+      <pre>negocios
+  galletas_vero
+    nombre: "Galletas Vero"
+    descripcion: "Las mejores galletas del rumbo."
+    productos_servicios: ["Galletas artesanales", "Pedidos por encargo"]
+    categoria: /categorias/alimentos
+    activo: true
+    direccion: "Calle sur"
+    whatsapp: "525512345678"
+    facebook: "https://www.facebook.com/galletasvero"
+    instagram: "https://www.instagram.com/galletasvero"
+    imagen: "https://..."
+    coordenadas: GeoPoint
+    creado: Timestamp
+    actualizado: Timestamp</pre>
+    </section>
+
+    <section class="card">
+      <h2>Guía operativa</h2>
+
+      <h3>Si agregas un negocio nuevo</h3>
+      <ol>
+        <li>Crea el documento en <strong>negocios</strong>.</li>
+        <li>Llena todos sus campos, incluyendo <strong>creado</strong> y <strong>actualizado</strong>.</li>
+        <li>Pon <strong>activo = true</strong>.</li>
+        <li>Actualiza <strong>app_meta/sync.negociosUpdatedAt</strong> con el timestamp actual.</li>
+      </ol>
+
+      <h3>Si editas un negocio existente</h3>
+      <ol>
+        <li>Modifica los campos necesarios.</li>
+        <li>Actualiza <strong>actualizado</strong> del negocio.</li>
+        <li>Actualiza <strong>app_meta/sync.negociosUpdatedAt</strong>.</li>
+      </ol>
+
+      <h3>Si quieres ocultar un negocio</h3>
+      <ol>
+        <li>No lo borres físicamente si quieres un sync limpio.</li>
+        <li>Cambia <strong>activo = false</strong>.</li>
+        <li>Actualiza <strong>actualizado</strong>.</li>
+        <li>Actualiza <strong>app_meta/sync.negociosUpdatedAt</strong>.</li>
+      </ol>
+
+      <h3>Si agregas o editas una categoría</h3>
+      <ol>
+        <li>Asegúrate de que la categoría tenga <strong>actualizado</strong>.</li>
+        <li>Si la cambias, actualiza ese timestamp.</li>
+        <li>Actualiza <strong>app_meta/sync.categoriasUpdatedAt</strong>.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Qué campos debes tocar siempre</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Cambio</th>
+            <th>Documento modificado</th>
+            <th>Documento global</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Agregar negocio</td>
+            <td><strong>negocios/{id}.creado</strong> y <strong>negocios/{id}.actualizado</strong></td>
+            <td><strong>app_meta/sync.negociosUpdatedAt</strong></td>
+          </tr>
+          <tr>
+            <td>Editar negocio</td>
+            <td><strong>negocios/{id}.actualizado</strong></td>
+            <td><strong>app_meta/sync.negociosUpdatedAt</strong></td>
+          </tr>
+          <tr>
+            <td>Ocultar negocio</td>
+            <td><strong>negocios/{id}.activo = false</strong> y <strong>actualizado</strong></td>
+            <td><strong>app_meta/sync.negociosUpdatedAt</strong></td>
+          </tr>
+          <tr>
+            <td>Agregar o editar categoría</td>
+            <td><strong>categorias/{id}.actualizado</strong></td>
+            <td><strong>app_meta/sync.categoriasUpdatedAt</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Ventajas de esta estrategia</h2>
+      <ul>
+        <li>Reduce mucho las lecturas comparado con usar <strong>snapshots()</strong> en colecciones grandes.</li>
+        <li>La app sigue funcionando offline si esos datos ya fueron consultados antes.</li>
+        <li>La búsqueda no abre consultas nuevas mientras escribes.</li>
+        <li>Si cambias un solo negocio, ya no necesita volver a bajar todos los negocios.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Importante</h2>
+      <ul>
+        <li>Usa siempre tipo <strong>Timestamp</strong> real en Firestore, no texto.</li>
+        <li>Conviene desactivar documentos con <strong>activo: false</strong> en vez de borrarlos de inmediato.</li>
+        <li>Para que el incremental funcione bien, debes ser consistente con el campo <strong>actualizado</strong>.</li>
+      </ul>
+    </section>
+
+    <p class="footer">Documento generado para Mi Tianguis · Arquitectura de sincronización incremental</p>
+  </main>
+</body>
+</html>

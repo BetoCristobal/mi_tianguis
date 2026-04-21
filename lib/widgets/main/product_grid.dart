@@ -2,19 +2,20 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:mi_tianguis/services/firestore_service.dart';
 
 class ProductGrid extends StatelessWidget {
   const ProductGrid({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('categorias')
-          .where('activo', isEqualTo: true)
-          .snapshots(),
+    final service = FirestoreService.instance;
+
+    return FutureBuilder<void>(
+      future: service.ensureSynchronized(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            service.categories.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
@@ -26,15 +27,15 @@ class ProductGrid extends StatelessWidget {
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
-        final categories = docs.map(_CategoryItem.fromDocument).toList();
+        final categories = service.categories
+            .map(_CategoryItem.fromCategory)
+            .toList(growable: false);
 
         if (categories.isEmpty) {
           return const _GridStatusView(
             icon: Icons.category_outlined,
             title: 'Aun no hay categorias',
-            message:
-                'Agrega documentos en Firestore para mostrar el directorio.',
+            message: 'Agrega documentos en Firestore para mostrar el directorio.',
           );
         }
 
@@ -45,7 +46,6 @@ class ProductGrid extends StatelessWidget {
           ...categories.take(featuredIndex),
           ...categories.skip(featuredIndex + 1),
         ];
-        final remaining = categoriesWithoutFeatured;
 
         return CustomScrollView(
           slivers: [
@@ -53,63 +53,8 @@ class ProductGrid extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF2D6A4F),
-                          Color(0xFF1B4332),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color.fromRGBO(244, 211, 94, 0.95),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Text(
-                            'Directorio del barrio',
-                            style: TextStyle(
-                              color: Color(0xFF3A2D00),
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Encuentra negocios locales por categoria',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            height: 1.15,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          '${categories.length} categorias disponibles en Firestore.',
-                          style: const TextStyle(
-                            color: Color(0xFFE7F5EE),
-                            fontSize: 15,
-                            height: 1.45,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: 6),
+                  _HeroBanner(totalCategories: categories.length),
                   const SizedBox(height: 18),
                   _FeaturedCategoryCard(category: featured),
                   const SizedBox(height: 22),
@@ -118,28 +63,28 @@ class ProductGrid extends StatelessWidget {
                     child: Text(
                       'Explora mas categorias',
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 24,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF1F1F1F),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      'Cada categoria te lleva a negocios reales registrados en Firestore.',
+                      'Selecciona una categoria para abrir negocios locales registrados.',
                       style: TextStyle(
                         color: Color(0xFF5D6470),
                         height: 1.45,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
-            if (remaining.isNotEmpty)
+            if (categoriesWithoutFeatured.isNotEmpty)
               SliverToBoxAdapter(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -152,7 +97,7 @@ class ProductGrid extends StatelessWidget {
                     return Wrap(
                       spacing: spacing,
                       runSpacing: spacing,
-                      children: remaining
+                      children: categoriesWithoutFeatured
                           .map(
                             (category) => SizedBox(
                               width: cardWidth,
@@ -170,6 +115,133 @@ class ProductGrid extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _HeroBanner extends StatelessWidget {
+  const _HeroBanner({required this.totalCategories});
+
+  final int totalCategories;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF2D6A4F),
+            Color(0xFF1B4332),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(27, 67, 50, 0.18),
+            blurRadius: 28,
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -34,
+            right: -18,
+            child: Container(
+              width: 136,
+              height: 136,
+              decoration: BoxDecoration(
+                color: const Color.fromRGBO(255, 255, 255, 0.10),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -42,
+            right: 46,
+            child: Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                color: const Color.fromRGBO(244, 211, 94, 0.14),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(244, 211, 94, 0.95),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Directorio del barrio',
+                  style: TextStyle(
+                    color: Color(0xFF3A2D00),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Encuentra negocios locales por categoria',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 29,
+                  height: 1.12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Descubre opciones cercanas y navega por rubros con una portada mas clara y visual.',
+                style: TextStyle(
+                  color: Color(0xFFE7F5EE),
+                  fontSize: 14.5,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(255, 255, 255, 0.10),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color.fromRGBO(255, 255, 255, 0.12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.storefront_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '$totalCategories categorias disponibles',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -192,9 +264,9 @@ class _FeaturedCategoryCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(30),
             boxShadow: const [
               BoxShadow(
-                color: Color.fromRGBO(53, 54, 66, 0.09),
-                blurRadius: 24,
-                offset: Offset(0, 12),
+                color: Color.fromRGBO(53, 54, 66, 0.10),
+                blurRadius: 26,
+                offset: Offset(0, 14),
               ),
             ],
           ),
@@ -202,20 +274,19 @@ class _FeaturedCategoryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                height: 190,
+                height: 205,
                 decoration: BoxDecoration(
                   color: category.color,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(30)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
                 ),
                 child: Stack(
                   children: [
                     Positioned(
-                      right: -20,
-                      top: -12,
+                      right: -24,
+                      top: -16,
                       child: Container(
-                        width: 140,
-                        height: 140,
+                        width: 148,
+                        height: 148,
                         decoration: BoxDecoration(
                           color: const Color.fromRGBO(255, 255, 255, 0.12),
                           borderRadius: BorderRadius.circular(999),
@@ -226,8 +297,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
                       left: 18,
                       top: 18,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
                           color: const Color.fromRGBO(255, 255, 255, 0.92),
                           borderRadius: BorderRadius.circular(999),
@@ -242,17 +312,17 @@ class _FeaturedCategoryCard extends StatelessWidget {
                       ),
                     ),
                     Positioned(
-                      right: 20,
-                      bottom: 14,
+                      right: 18,
+                      bottom: 10,
                       child: _CategoryImage(
                         imagePath: category.image,
-                        width: 120,
-                        height: 120,
+                        width: 126,
+                        height: 126,
                       ),
                     ),
                     Positioned(
                       left: 20,
-                      right: 132,
+                      right: 138,
                       bottom: 22,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +331,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
                             category.displayTitle,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 28,
+                              fontSize: 29,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -284,8 +354,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: category.color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
@@ -299,10 +368,18 @@ class _FeaturedCategoryCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      color: category.color,
-                      size: 28,
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: category.color.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        color: category.color,
+                        size: 22,
+                      ),
                     ),
                   ],
                 ),
@@ -343,15 +420,15 @@ class _CategoryCatalogCard extends StatelessWidget {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(15),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 68,
-                  height: 68,
+                  width: 72,
+                  height: 72,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.72),
+                    color: Colors.white.withValues(alpha: 0.74),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
@@ -362,11 +439,11 @@ class _CategoryCatalogCard extends StatelessWidget {
                     ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(13),
                     child: _CategoryImage(
                       imagePath: category.image,
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       iconColor: category.color,
                     ),
                   ),
@@ -381,7 +458,7 @@ class _CategoryCatalogCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 17.5,
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF182028),
                           height: 1.15,
@@ -400,17 +477,23 @@ class _CategoryCatalogCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.72),
+                          color: Colors.white.withValues(alpha: 0.76),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: category.color,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Text(
                               'Explorar',
                               style: TextStyle(
@@ -418,7 +501,7 @@ class _CategoryCatalogCard extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             Icon(
                               Icons.arrow_forward_rounded,
                               color: category.color,
@@ -551,44 +634,19 @@ class _CategoryItem {
 
   String get displayTitle => _capitalizeWords(titulo);
 
-  factory _CategoryItem.fromDocument(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final data = doc.data();
-
+  factory _CategoryItem.fromCategory(CategoryItem item) {
     return _CategoryItem(
-      titulo: (data['titulo'] ?? doc.id) as String,
-      reference: doc.reference,
-      image: ((data['image'] ?? data['imagen']) ?? '') as String,
-      color: _parseColor(data['color']),
-      description: (data['descripcion'] ??
-          'Explora negocios en esta categoria.') as String,
+      titulo: item.titulo,
+      reference: item.reference,
+      image: item.image,
+      color: item.color,
+      description: item.description,
     );
-  }
-
-  static Color _parseColor(dynamic value) {
-    if (value is int) {
-      return Color(value);
-    }
-
-    if (value is String) {
-      final sanitized = value.replaceAll('#', '').trim();
-      if (sanitized.isEmpty) {
-        return const Color(0xFF2D6A4F);
-      }
-
-      final normalized = sanitized.length == 6 ? 'FF$sanitized' : sanitized;
-      final parsed = int.tryParse(normalized, radix: 16);
-      if (parsed != null) {
-        return Color(parsed);
-      }
-    }
-
-    return const Color(0xFF2D6A4F);
   }
 }
 
 void _openCategory(BuildContext context, _CategoryItem category) {
+  FocusManager.instance.primaryFocus?.unfocus();
   Navigator.pushNamed(
     context,
     'listaNegocios',

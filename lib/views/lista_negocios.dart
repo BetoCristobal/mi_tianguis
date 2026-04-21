@@ -3,12 +3,14 @@ import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:mi_tianguis/services/firestore_service.dart';
 
 class ListaNegocios extends StatelessWidget {
   const ListaNegocios({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final service = FirestoreService.instance;
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final String titulo = args['productTitulo'] as String? ?? 'Categoria';
@@ -26,14 +28,11 @@ class ListaNegocios extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F0E8),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('negocios')
-            .where('activo', isEqualTo: true)
-            .where('categoria', isEqualTo: categoriaRef)
-            .snapshots(),
+      body: FutureBuilder<void>(
+        future: service.ensureSynchronized(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              service.businesses.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -46,7 +45,7 @@ class ListaNegocios extends StatelessWidget {
             );
           }
 
-          final docs = snapshot.data?.docs ?? [];
+          final docs = service.businessesForCategory(categoriaRef);
 
           if (docs.isEmpty) {
             return _ListaStatusView(
@@ -59,12 +58,14 @@ class ListaNegocios extends StatelessWidget {
 
           final random = Random();
           final featuredDoc = docs[random.nextInt(docs.length)];
-          final otherDocs = docs.where((doc) => doc.id != featuredDoc.id).toList();
+          final otherDocs = docs
+              .where((doc) => doc.id != featuredDoc.id)
+              .toList(growable: false);
 
           return CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 170,
+                expandedHeight: 186,
                 pinned: true,
                 backgroundColor: const Color(0xFF7A3E2B),
                 foregroundColor: Colors.white,
@@ -80,60 +81,89 @@ class ListaNegocios extends StatelessWidget {
                         ],
                       ),
                     ),
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color.fromRGBO(255, 244, 214, 0.95),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: const Text(
-                                'Seleccion local',
-                                style: TextStyle(
-                                  color: Color(0xFF6A3A16),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                    child: Stack(
+                      children: [
+                        Positioned(
+                          top: -28,
+                          right: -18,
+                          child: Container(
+                            width: 126,
+                            height: 126,
+                            decoration: BoxDecoration(
+                              color: const Color.fromRGBO(255, 255, 255, 0.10),
+                              borderRadius: BorderRadius.circular(999),
                             ),
-                            const SizedBox(height: 14),
-                            Text(
-                              titulo,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 30,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${docs.length} opciones para explorar',
-                              style: const TextStyle(
-                                color: Color(0xFFF9EAD9),
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                        Positioned(
+                          bottom: -30,
+                          right: 38,
+                          child: Container(
+                            width: 82,
+                            height: 82,
+                            decoration: BoxDecoration(
+                              color: const Color.fromRGBO(255, 244, 214, 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                        ),
+                        SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color.fromRGBO(255, 244, 214, 0.95),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Text(
+                                    'Seleccion local',
+                                    style: TextStyle(
+                                      color: Color(0xFF6A3A16),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  titulo,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 31,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${docs.length} opciones para explorar en esta categoria.',
+                                  style: const TextStyle(
+                                    color: Color(0xFFF9EAD9),
+                                    fontSize: 14.5,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
                   child: _FeaturedBusinessCard(
-                    doc: featuredDoc,
+                    business: featuredDoc,
                     onTap: () {
                       Navigator.pushNamed(
                         context,
@@ -144,40 +174,53 @@ class ListaNegocios extends StatelessWidget {
                   ),
                 ),
               ),
-              if (otherDocs.isNotEmpty)
+              if (otherDocs.isNotEmpty) ...[
                 const SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(18, 8, 18, 10),
+                    padding: EdgeInsets.fromLTRB(18, 6, 18, 6),
                     child: Text(
                       'Mas negocios en esta categoria',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF2F241F),
                       ),
                     ),
                   ),
                 ),
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(18, 0, 18, 10),
+                    child: Text(
+                      'Revisa otras opciones disponibles y abre su ficha completa.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF6E625C),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final doc = otherDocs[index];
-                      final data = doc.data();
+                      final item = otherDocs[index];
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _BusinessListTile(
-                          nombre: (data['nombre'] ?? 'Sin nombre') as String,
-                          descripcion: (data['descripcion'] ?? '') as String,
-                          direccion: (data['direccion'] ?? '') as String,
-                          imageUrl: _readImage(data),
+                          nombre: item.nombre,
+                          descripcion: item.descripcion,
+                          direccion: item.direccion,
+                          imageUrl: item.imageUrl,
                           onTap: () {
                             Navigator.pushNamed(
                               context,
                               'detallesNegocio',
-                              arguments: {'negocioId': doc.id},
+                              arguments: {'negocioId': item.id},
                             );
                           },
                         ),
@@ -195,40 +238,35 @@ class ListaNegocios extends StatelessWidget {
   }
 }
 
-String _readImage(Map<String, dynamic> data) {
-  return ((data['image'] ?? data['imagen']) ?? '') as String;
-}
-
 class _FeaturedBusinessCard extends StatelessWidget {
   const _FeaturedBusinessCard({
-    required this.doc,
+    required this.business,
     required this.onTap,
   });
 
-  final QueryDocumentSnapshot<Map<String, dynamic>> doc;
+  final BusinessItem business;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final data = doc.data();
-    final String nombre = (data['nombre'] ?? 'Sin nombre') as String;
-    final String descripcion = (data['descripcion'] ?? '') as String;
-    final String direccion = (data['direccion'] ?? '') as String;
-    final String imageUrl = _readImage(data);
+    final String nombre = business.nombre.isEmpty ? 'Sin nombre' : business.nombre;
+    final String descripcion = business.descripcion;
+    final String direccion = business.direccion;
+    final String imageUrl = business.imageUrl;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(32),
         child: Ink(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(32),
             boxShadow: const [
               BoxShadow(
                 color: Color.fromRGBO(67, 47, 37, 0.12),
-                blurRadius: 26,
+                blurRadius: 28,
                 offset: Offset(0, 14),
               ),
             ],
@@ -237,7 +275,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                 child: AspectRatio(
                   aspectRatio: 16 / 10,
                   child: Stack(
@@ -262,8 +300,8 @@ class _FeaturedBusinessCard extends StatelessWidget {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Color.fromRGBO(0, 0, 0, 0.08),
-                              Color.fromRGBO(0, 0, 0, 0.62),
+                              Color.fromRGBO(0, 0, 0, 0.10),
+                              Color.fromRGBO(0, 0, 0, 0.64),
                             ],
                           ),
                         ),
@@ -299,20 +337,32 @@ class _FeaturedBusinessCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 26,
+                                fontSize: 27,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             if (direccion.trim().isNotEmpty) ...[
                               const SizedBox(height: 8),
-                              Text(
-                                direccion,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFFF7EEE6),
-                                  fontSize: 14,
-                                ),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 16,
+                                    color: Color(0xFFF7EEE6),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      direccion,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFFF7EEE6),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ],
@@ -335,7 +385,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 15,
-                        height: 1.45,
+                        height: 1.5,
                         color: Color(0xFF594B43),
                       ),
                     ),
@@ -369,11 +419,11 @@ class _FeaturedBusinessCard extends StatelessWidget {
                         ),
                         const Spacer(),
                         Container(
-                          width: 42,
-                          height: 42,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
                             color: const Color(0xFF7A3E2B),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(15),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_rounded,
@@ -430,12 +480,13 @@ class _BusinessListTile extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
                   child: SizedBox(
-                    width: 92,
-                    height: 92,
+                    width: 96,
+                    height: 96,
                     child: imageUrl.trim().isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: imageUrl,
@@ -474,42 +525,52 @@ class _BusinessListTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 14,
-                          height: 1.35,
+                          height: 1.4,
                           color: Color(0xFF6B5F57),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: Color(0xFFB5651D),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              direccion.trim().isEmpty
-                                  ? 'Direccion no disponible'
-                                  : direccion,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF8A6F5A),
-                                fontWeight: FontWeight.w600,
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F4EC),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 16,
+                              color: Color(0xFFB5651D),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                direccion.trim().isEmpty
+                                    ? 'Direccion no disponible'
+                                    : direccion,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF8A6F5A),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 10),
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: const Color(0xFFF6E8DA),
                     borderRadius: BorderRadius.circular(14),

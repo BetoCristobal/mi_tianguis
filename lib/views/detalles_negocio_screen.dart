@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:mi_tianguis/services/firestore_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class DetallesNegocioScreen extends StatelessWidget {
@@ -147,6 +148,7 @@ class DetallesNegocioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final service = FirestoreService.instance;
     final args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
     final String? negocioId = args?['negocioId'] as String?;
@@ -161,13 +163,11 @@ class DetallesNegocioScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F3EE),
-      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('negocios')
-            .doc(negocioId)
-            .snapshots(),
+      body: FutureBuilder<void>(
+        future: service.ensureSynchronized(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              service.businesses.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -179,7 +179,9 @@ class DetallesNegocioScreen extends StatelessWidget {
             );
           }
 
-          if (!snapshot.hasData || !snapshot.data!.exists) {
+          final business = service.businessById(negocioId);
+
+          if (business == null) {
             return const _StatusView(
               icon: Icons.storefront_outlined,
               title: 'Negocio no disponible',
@@ -187,22 +189,16 @@ class DetallesNegocioScreen extends StatelessWidget {
             );
           }
 
-          final data = snapshot.data!.data()!;
-          final String nombre = (data['nombre'] ?? '') as String;
-          final String descripcion = (data['descripcion'] ?? '') as String;
-          final String direccion = (data['direccion'] ?? '') as String;
-          final String whatsapp = (data['whatsapp'] ?? '') as String;
-          final String facebook = (data['facebook'] ?? '') as String;
-          final String instagram = (data['instagram'] ?? '') as String;
-          final String imageUrl =
-              ((data['image'] ?? data['imagen']) ?? '') as String;
-          final List<String> servicios =
-              ((data['productos_servicios'] as List<dynamic>?) ?? [])
-              .map((item) => item.toString().trim())
-              .where((item) => item.isNotEmpty)
-              .toList();
+          final String nombre = business.nombre;
+          final String descripcion = business.descripcion;
+          final String direccion = business.direccion;
+          final String whatsapp = business.whatsapp;
+          final String facebook = business.facebook;
+          final String instagram = business.instagram;
+          final String imageUrl = business.imageUrl;
+          final List<String> servicios = business.productosServicios;
 
-          final GeoPoint? gp = data['coordenadas'] as GeoPoint?;
+          final GeoPoint? gp = business.coordenadas;
           final double? lat = gp?.latitude;
           final double? lng = gp?.longitude;
           final bool hasMapLocation =
@@ -210,6 +206,11 @@ class DetallesNegocioScreen extends StatelessWidget {
           final String? whatsappPhone = _normalizePhone(whatsapp);
           final String? facebookUrl = _normalizeFacebookUrl(facebook);
           final String? instagramUrl = _normalizeInstagramUrl(instagram);
+          final String resolvedWhatsAppPhone = whatsappPhone ?? '';
+          final String resolvedFacebookUrl = facebookUrl ?? '';
+          final String resolvedInstagramUrl = instagramUrl ?? '';
+          final double resolvedLat = lat ?? 0;
+          final double resolvedLng = lng ?? 0;
           final bool hasWhatsApp = whatsappPhone != null;
           final bool hasFacebook = facebookUrl != null;
           final bool hasInstagram = instagramUrl != null;
@@ -324,7 +325,7 @@ class DetallesNegocioScreen extends StatelessWidget {
                               ),
                               label: 'WhatsApp',
                               color: const Color(0xFF1FA855),
-                              onTap: () => _openWhatsApp(whatsappPhone),
+                              onTap: () => _openWhatsApp(resolvedWhatsAppPhone),
                             ),
                           if (hasFacebook)
                             _ActionChip(
@@ -335,7 +336,7 @@ class DetallesNegocioScreen extends StatelessWidget {
                               ),
                               label: 'Facebook',
                               color: const Color(0xFF1877F2),
-                              onTap: () => _openFacebook(facebookUrl),
+                              onTap: () => _openFacebook(resolvedFacebookUrl),
                             ),
                           if (hasInstagram)
                             _ActionChip(
@@ -346,7 +347,7 @@ class DetallesNegocioScreen extends StatelessWidget {
                               ),
                               label: 'Instagram',
                               color: const Color(0xFFE1306C),
-                              onTap: () => _openExternalLink(instagramUrl),
+                              onTap: () => _openExternalLink(resolvedInstagramUrl),
                             ),
                           if (hasMapLocation)
                             _ActionChip(
@@ -354,8 +355,8 @@ class DetallesNegocioScreen extends StatelessWidget {
                               label: 'Ubicación',
                               color: const Color.fromARGB(255, 255, 174, 0),
                               onTap: () => _openInMaps(
-                                lat,
-                                lng,
+                                resolvedLat,
+                                resolvedLng,
                                 label: nombre.isEmpty ? 'Negocio' : nombre,
                               ),
                             ),
