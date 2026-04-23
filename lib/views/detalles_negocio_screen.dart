@@ -8,6 +8,35 @@ import 'package:url_launcher/url_launcher.dart';
 class DetallesNegocioScreen extends StatelessWidget {
   const DetallesNegocioScreen({super.key});
 
+  void _openImageViewer(
+    BuildContext context, {
+    required String imageUrl,
+    required String heroTag,
+  }) {
+    if (imageUrl.trim().isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        opaque: false,
+        barrierColor: Colors.black.withValues(alpha: 0.92),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _FullscreenImageViewer(
+            imageUrl: imageUrl,
+            heroTag: heroTag,
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _openInMaps(double lat, double lng, {String? label}) async {
     final title = Uri.encodeComponent(label ?? 'Ubicacion');
 
@@ -47,9 +76,7 @@ class DetallesNegocioScreen extends StatelessWidget {
     }
 
     final webUri = Uri.parse('https://api.whatsapp.com/send?phone=$digits');
-    if (await launchUrl(webUri, mode: LaunchMode.externalApplication)) {
-      return;
-    }
+    await launchUrl(webUri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _openFacebook(String value) async {
@@ -69,9 +96,7 @@ class DetallesNegocioScreen extends StatelessWidget {
     }
 
     final webUri = Uri.parse(normalized);
-    if (await launchUrl(webUri, mode: LaunchMode.externalApplication)) {
-      return;
-    }
+    await launchUrl(webUri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _openExternalLink(String url) async {
@@ -149,6 +174,9 @@ class DetallesNegocioScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = FirestoreService.instance;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool isTablet = screenWidth >= 820;
+    final double maxContentWidth = screenWidth >= 1300 ? 1160 : 980;
     final args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
     final String? negocioId = args?['negocioId'] as String?;
@@ -206,28 +234,389 @@ class DetallesNegocioScreen extends StatelessWidget {
           final String? whatsappPhone = _normalizePhone(whatsapp);
           final String? facebookUrl = _normalizeFacebookUrl(facebook);
           final String? instagramUrl = _normalizeInstagramUrl(instagram);
-          final String resolvedWhatsAppPhone = whatsappPhone ?? '';
-          final String resolvedFacebookUrl = facebookUrl ?? '';
-          final String resolvedInstagramUrl = instagramUrl ?? '';
-          final double resolvedLat = lat ?? 0;
-          final double resolvedLng = lng ?? 0;
-          final bool hasWhatsApp = whatsappPhone != null;
-          final bool hasFacebook = facebookUrl != null;
-          final bool hasInstagram = instagramUrl != null;
 
-          return CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 280,
-                pinned: true,
-                backgroundColor: const Color(0xFF1B4332),
-                foregroundColor: Colors.white,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (imageUrl.isNotEmpty)
-                        CachedNetworkImage(
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth),
+              child: CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: isTablet ? 340 : 280,
+                    pinned: true,
+                    backgroundColor: const Color(0xFF1B4332),
+                    foregroundColor: Colors.white,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (imageUrl.isNotEmpty)
+                            GestureDetector(
+                              onTap: () => _openImageViewer(
+                                context,
+                                imageUrl: imageUrl,
+                                heroTag: 'business-image-$negocioId',
+                              ),
+                              child: Hero(
+                                tag: 'business-image-$negocioId',
+                                child: CachedNetworkImage(
+                                  imageUrl: imageUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color: const Color(0xFFE9E1D5),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      _HeaderFallback(title: nombre),
+                                ),
+                              ),
+                            )
+                          else
+                            _HeaderFallback(title: nombre),
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color.fromRGBO(0, 0, 0, 0.10),
+                                  Color.fromRGBO(0, 0, 0, 0.68),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: isTablet ? 28 : 20,
+                            right: isTablet ? 28 : 20,
+                            bottom: 24,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF4D35E),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Text(
+                                    'Negocio local',
+                                    style: TextStyle(
+                                      color: Color(0xFF3A2D00),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  nombre.isEmpty ? 'Sin nombre' : nombre,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: isTablet ? 34 : 28,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                if (direccion.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    direccion,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFFF5F5F5),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isTablet ? 24 : 16,
+                        18,
+                        isTablet ? 24 : 16,
+                        24,
+                      ),
+                      child: isTablet
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 5,
+                                  child: _DetailsContent(
+                                    hasWhatsApp: whatsappPhone != null,
+                                    hasFacebook: facebookUrl != null,
+                                    hasInstagram: instagramUrl != null,
+                                    hasMapLocation: hasMapLocation,
+                                    whatsappPhone: whatsappPhone ?? '',
+                                    facebookUrl: facebookUrl ?? '',
+                                    instagramUrl: instagramUrl ?? '',
+                                    lat: lat ?? 0,
+                                    lng: lng ?? 0,
+                                    nombre: nombre,
+                                    descripcion: descripcion,
+                                    servicios: servicios,
+                                    openWhatsApp: _openWhatsApp,
+                                    openFacebook: _openFacebook,
+                                    openExternalLink: _openExternalLink,
+                                    openInMaps: _openInMaps,
+                                  ),
+                                ),
+                                const SizedBox(width: 18),
+                                Expanded(
+                                  flex: 4,
+                                  child: _DetailsAside(
+                                    nombre: nombre,
+                                    direccion: direccion,
+                                    imageUrl: imageUrl,
+                                    heroTag: 'business-image-$negocioId-aside',
+                                    onImageTap: () => _openImageViewer(
+                                      context,
+                                      imageUrl: imageUrl,
+                                      heroTag: 'business-image-$negocioId-aside',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : _DetailsContent(
+                              hasWhatsApp: whatsappPhone != null,
+                              hasFacebook: facebookUrl != null,
+                              hasInstagram: instagramUrl != null,
+                              hasMapLocation: hasMapLocation,
+                              whatsappPhone: whatsappPhone ?? '',
+                              facebookUrl: facebookUrl ?? '',
+                              instagramUrl: instagramUrl ?? '',
+                              lat: lat ?? 0,
+                              lng: lng ?? 0,
+                              nombre: nombre,
+                              descripcion: descripcion,
+                              servicios: servicios,
+                              openWhatsApp: _openWhatsApp,
+                              openFacebook: _openFacebook,
+                              openExternalLink: _openExternalLink,
+                              openInMaps: _openInMaps,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DetailsContent extends StatelessWidget {
+  const _DetailsContent({
+    required this.hasWhatsApp,
+    required this.hasFacebook,
+    required this.hasInstagram,
+    required this.hasMapLocation,
+    required this.whatsappPhone,
+    required this.facebookUrl,
+    required this.instagramUrl,
+    required this.lat,
+    required this.lng,
+    required this.nombre,
+    required this.descripcion,
+    required this.servicios,
+    required this.openWhatsApp,
+    required this.openFacebook,
+    required this.openExternalLink,
+    required this.openInMaps,
+  });
+
+  final bool hasWhatsApp;
+  final bool hasFacebook;
+  final bool hasInstagram;
+  final bool hasMapLocation;
+  final String whatsappPhone;
+  final String facebookUrl;
+  final String instagramUrl;
+  final double lat;
+  final double lng;
+  final String nombre;
+  final String descripcion;
+  final List<String> servicios;
+  final Future<void> Function(String) openWhatsApp;
+  final Future<void> Function(String) openFacebook;
+  final Future<void> Function(String) openExternalLink;
+  final Future<void> Function(double, double, {String? label}) openInMaps;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            if (hasWhatsApp)
+              _ActionChip(
+                icon: const FaIcon(
+                  FontAwesomeIcons.whatsapp,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                label: 'WhatsApp',
+                color: const Color(0xFF1FA855),
+                onTap: () => openWhatsApp(whatsappPhone),
+              ),
+            if (hasFacebook)
+              _ActionChip(
+                icon: const FaIcon(
+                  FontAwesomeIcons.facebookF,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                label: 'Facebook',
+                color: const Color(0xFF1877F2),
+                onTap: () => openFacebook(facebookUrl),
+              ),
+            if (hasInstagram)
+              _ActionChip(
+                icon: const FaIcon(
+                  FontAwesomeIcons.instagram,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                label: 'Instagram',
+                color: const Color(0xFFE1306C),
+                onTap: () => openExternalLink(instagramUrl),
+              ),
+            if (hasMapLocation)
+              _ActionChip(
+                icon: const _MapsPinIcon(),
+                label: 'Abrir en Maps',
+                color: const Color(0xFFFFAE00),
+                onTap: () => openInMaps(
+                  lat,
+                  lng,
+                  label: nombre.isEmpty ? 'Negocio' : nombre,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 22),
+        _InfoSection(
+          title: 'Descripcion',
+          icon: Icons.description_outlined,
+          child: Text(
+            descripcion.trim().isEmpty
+                ? 'Este negocio aun no tiene descripcion.'
+                : descripcion,
+            style: const TextStyle(
+              height: 1.55,
+              color: Color(0xFF3D3D3D),
+              fontSize: 15,
+            ),
+          ),
+        ),
+        if (servicios.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _InfoSection(
+            title: 'Productos/Servicios',
+            icon: Icons.inventory_2_outlined,
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: servicios
+                  .map(
+                    (servicio) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F4EC),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 18,
+                            color: Color(0xFF1B4332),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              servicio,
+                              style: const TextStyle(
+                                color: Color(0xFF2B2B2B),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DetailsAside extends StatelessWidget {
+  const _DetailsAside({
+    required this.nombre,
+    required this.direccion,
+    required this.imageUrl,
+    required this.heroTag,
+    required this.onImageTap,
+  });
+
+  final String nombre;
+  final String direccion;
+  final String imageUrl;
+  final String heroTag;
+  final VoidCallback onImageTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(53, 54, 66, 0.08),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: imageUrl.isNotEmpty
+                  ? GestureDetector(
+                      onTap: onImageTap,
+                      child: Hero(
+                        tag: heroTag,
+                        child: CachedNetworkImage(
                           imageUrl: imageUrl,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
@@ -236,199 +625,192 @@ class DetallesNegocioScreen extends StatelessWidget {
                               child: CircularProgressIndicator(),
                             ),
                           ),
-                          errorWidget: (context, url, error) => _HeaderFallback(
-                            title: nombre,
-                          ),
-                        )
-                      else
-                        _HeaderFallback(title: nombre),
-                      const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color.fromRGBO(0, 0, 0, 0.10),
-                              Color.fromRGBO(0, 0, 0, 0.68),
-                            ],
-                          ),
+                          errorWidget: (context, url, error) =>
+                              _HeaderFallback(title: nombre),
                         ),
                       ),
-                      Positioned(
-                        left: 20,
-                        right: 20,
-                        bottom: 24,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF4D35E),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: const Text(
-                                'Negocio local',
-                                style: TextStyle(
-                                  color: Color(0xFF3A2D00),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              nombre.isEmpty ? 'Sin nombre' : nombre,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            if (direccion.trim().isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                direccion,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFFF5F5F5),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
+                    )
+                  : _HeaderFallback(title: nombre),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nombre.isEmpty ? 'Sin nombre' : nombre,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E1E1E),
                   ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-                  child: Column(
+                if (direccion.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          if (hasWhatsApp)
-                            _ActionChip(
-                              icon: const FaIcon(
-                                FontAwesomeIcons.whatsapp,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              label: 'WhatsApp',
-                              color: const Color(0xFF1FA855),
-                              onTap: () => _openWhatsApp(resolvedWhatsAppPhone),
-                            ),
-                          if (hasFacebook)
-                            _ActionChip(
-                              icon: const FaIcon(
-                                FontAwesomeIcons.facebookF,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              label: 'Facebook',
-                              color: const Color(0xFF1877F2),
-                              onTap: () => _openFacebook(resolvedFacebookUrl),
-                            ),
-                          if (hasInstagram)
-                            _ActionChip(
-                              icon: const FaIcon(
-                                FontAwesomeIcons.instagram,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              label: 'Instagram',
-                              color: const Color(0xFFE1306C),
-                              onTap: () => _openExternalLink(resolvedInstagramUrl),
-                            ),
-                          if (hasMapLocation)
-                            _ActionChip(
-                              icon: const _MapsPinIcon(),
-                              label: 'Ubicación',
-                              color: const Color.fromARGB(255, 255, 174, 0),
-                              onTap: () => _openInMaps(
-                                resolvedLat,
-                                resolvedLng,
-                                label: nombre.isEmpty ? 'Negocio' : nombre,
-                              ),
-                            ),
-                        ],
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(
+                          Icons.location_on_outlined,
+                          size: 18,
+                          color: Color(0xFF7A3E2B),
+                        ),
                       ),
-                      const SizedBox(height: 22),
-                      _InfoSection(
-                        title: 'Descripcion',
-                        icon: Icons.description_outlined,
+                      const SizedBox(width: 8),
+                      Expanded(
                         child: Text(
-                          descripcion.trim().isEmpty
-                              ? 'Este negocio aun no tiene descripcion.'
-                              : descripcion,
+                          direccion,
                           style: const TextStyle(
-                            height: 1.55,
-                            color: Color(0xFF3D3D3D),
-                            fontSize: 15,
+                            color: Color(0xFF5D6470),
+                            height: 1.45,
                           ),
                         ),
                       ),
-                      if (servicios.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        _InfoSection(
-                          title: 'Productos/Servicios',
-                          icon: Icons.inventory_2_outlined,
-                          child: Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: servicios
-                                .map(
-                                  (servicio) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8F4EC),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.check_circle_rounded,
-                                          size: 18,
-                                          color: Color(0xFF1B4332),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Flexible(
-                                          child: Text(
-                                            servicio,
-                                            style: const TextStyle(
-                                              color: Color(0xFF2B2B2B),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                                .toList(),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FullscreenImageViewer extends StatefulWidget {
+  const _FullscreenImageViewer({
+    required this.imageUrl,
+    required this.heroTag,
+  });
+
+  final String imageUrl;
+  final String heroTag;
+
+  @override
+  State<_FullscreenImageViewer> createState() => _FullscreenImageViewerState();
+}
+
+class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
+  final TransformationController _transformationController =
+      TransformationController();
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _resetZoom() {
+    _transformationController.value = Matrix4.identity();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+          SafeArea(
+            child: Stack(
+              children: [
+                Center(
+                  child: GestureDetector(
+                    onDoubleTap: _resetZoom,
+                    child: InteractiveViewer(
+                      minScale: 0.8,
+                      maxScale: 4,
+                      panEnabled: true,
+                      scaleEnabled: true,
+                      transformationController: _transformationController,
+                      child: Hero(
+                        tag: widget.heroTag,
+                        child: CachedNetworkImage(
+                          imageUrl: widget.imageUrl,
+                          fit: BoxFit.contain,
+                          placeholder: (context, url) => const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            width: 260,
+                            height: 260,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF355C4A),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: const Icon(
+                              Icons.broken_image_outlined,
+                              color: Colors.white70,
+                              size: 56,
+                            ),
                           ),
                         ),
-                      ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _ViewerButton(
+                        icon: Icons.center_focus_strong_rounded,
+                        onTap: _resetZoom,
+                      ),
+                      const SizedBox(width: 10),
+                      _ViewerButton(
+                        icon: Icons.close_rounded,
+                        onTap: () => Navigator.of(context).pop(),
+                      ),
                     ],
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewerButton extends StatelessWidget {
+  const _ViewerButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.42),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(
+            icon,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }

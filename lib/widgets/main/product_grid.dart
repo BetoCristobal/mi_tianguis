@@ -14,6 +14,11 @@ class ProductGrid extends StatelessWidget {
     return FutureBuilder<void>(
       future: service.ensureSynchronized(),
       builder: (context, snapshot) {
+        final double screenWidth = MediaQuery.sizeOf(context).width;
+        final bool isTablet = screenWidth >= 720;
+        final double maxContentWidth = screenWidth >= 1200 ? 1120 : 960;
+        final double horizontalPadding = isTablet ? 8 : 0;
+
         if (snapshot.connectionState == ConnectionState.waiting &&
             service.categories.isEmpty) {
           return const Center(child: CircularProgressIndicator());
@@ -47,72 +52,93 @@ class ProductGrid extends StatelessWidget {
           ...categories.skip(featuredIndex + 1),
         ];
 
-        return CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 6),
-                  _HeroBanner(totalCategories: categories.length),
-                  const SizedBox(height: 18),
-                  _FeaturedCategoryCard(category: featured),
-                  const SizedBox(height: 22),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      'Explora mas categorias',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1F1F1F),
-                      ),
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 6),
+                        _HeroBanner(
+                          totalCategories: categories.length,
+                          isTablet: isTablet,
+                        ),
+                        const SizedBox(height: 18),
+                        _FeaturedCategoryCard(
+                          category: featured,
+                          isTablet: isTablet,
+                        ),
+                        const SizedBox(height: 22),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            'Explora mas categorias',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1F1F1F),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            'Selecciona una categoria para abrir negocios locales registrados.',
+                            style: TextStyle(
+                              color: Color(0xFF5D6470),
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      'Selecciona una categoria para abrir negocios locales registrados.',
-                      style: TextStyle(
-                        color: Color(0xFF5D6470),
-                        height: 1.45,
+                  if (categoriesWithoutFeatured.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final int columns = constraints.maxWidth >= 1024
+                              ? 3
+                              : constraints.maxWidth >= 620
+                              ? 2
+                              : 1;
+                          final double spacing = 12;
+                          final double cardWidth =
+                              (constraints.maxWidth - (spacing * (columns - 1))) /
+                                  columns;
+
+                          return Wrap(
+                            spacing: spacing,
+                            runSpacing: spacing,
+                            children: categoriesWithoutFeatured
+                                .map(
+                                  (category) => SizedBox(
+                                    width: cardWidth,
+                                    child: _CategoryCatalogCard(
+                                      category: category,
+                                      isTablet: isTablet,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        },
                       ),
                     ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 18),
                   ),
-                  const SizedBox(height: 12),
                 ],
               ),
             ),
-            if (categoriesWithoutFeatured.isNotEmpty)
-              SliverToBoxAdapter(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final bool useTwoColumns = constraints.maxWidth >= 560;
-                    final double spacing = 12;
-                    final double cardWidth = useTwoColumns
-                        ? (constraints.maxWidth - spacing) / 2
-                        : constraints.maxWidth;
-
-                    return Wrap(
-                      spacing: spacing,
-                      runSpacing: spacing,
-                      children: categoriesWithoutFeatured
-                          .map(
-                            (category) => SizedBox(
-                              width: cardWidth,
-                              child: _CategoryCatalogCard(category: category),
-                            ),
-                          )
-                          .toList(),
-                    );
-                  },
-                ),
-              ),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 18),
-            ),
-          ],
+          ),
         );
       },
     );
@@ -120,15 +146,24 @@ class ProductGrid extends StatelessWidget {
 }
 
 class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({required this.totalCategories});
+  const _HeroBanner({
+    required this.totalCategories,
+    required this.isTablet,
+  });
 
   final int totalCategories;
+  final bool isTablet;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+      padding: EdgeInsets.fromLTRB(
+        isTablet ? 28 : 22,
+        isTablet ? 26 : 22,
+        isTablet ? 28 : 22,
+        isTablet ? 28 : 24,
+      ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -191,11 +226,11 @@ class _HeroBanner extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Encuentra negocios locales por categoria',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 29,
+                  fontSize: isTablet ? 36 : 29,
                   height: 1.12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -247,9 +282,13 @@ class _HeroBanner extends StatelessWidget {
 }
 
 class _FeaturedCategoryCard extends StatelessWidget {
-  const _FeaturedCategoryCard({required this.category});
+  const _FeaturedCategoryCard({
+    required this.category,
+    required this.isTablet,
+  });
 
   final _CategoryItem category;
+  final bool isTablet;
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +313,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                height: 205,
+                height: isTablet ? 255 : 205,
                 decoration: BoxDecoration(
                   color: category.color,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
@@ -312,26 +351,26 @@ class _FeaturedCategoryCard extends StatelessWidget {
                       ),
                     ),
                     Positioned(
-                      right: 18,
-                      bottom: 10,
+                      right: isTablet ? 26 : 18,
+                      bottom: isTablet ? 16 : 10,
                       child: _CategoryImage(
                         imagePath: category.image,
-                        width: 126,
-                        height: 126,
+                        width: isTablet ? 154 : 126,
+                        height: isTablet ? 154 : 126,
                       ),
                     ),
                     Positioned(
                       left: 20,
-                      right: 138,
-                      bottom: 22,
+                      right: isTablet ? 186 : 138,
+                      bottom: isTablet ? 28 : 22,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             category.displayTitle,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 29,
+                              fontSize: isTablet ? 34 : 29,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -393,9 +432,13 @@ class _FeaturedCategoryCard extends StatelessWidget {
 }
 
 class _CategoryCatalogCard extends StatelessWidget {
-  const _CategoryCatalogCard({required this.category});
+  const _CategoryCatalogCard({
+    required this.category,
+    required this.isTablet,
+  });
 
   final _CategoryItem category;
+  final bool isTablet;
 
   @override
   Widget build(BuildContext context) {
@@ -426,7 +469,7 @@ class _CategoryCatalogCard extends StatelessWidget {
               children: [
                 Container(
                   width: 72,
-                  height: 72,
+                  height: isTablet ? 80 : 72,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.74),
                     borderRadius: BorderRadius.circular(20),
@@ -439,11 +482,11 @@ class _CategoryCatalogCard extends StatelessWidget {
                     ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(13),
+                    padding: EdgeInsets.all(isTablet ? 15 : 13),
                     child: _CategoryImage(
                       imagePath: category.image,
-                      width: 42,
-                      height: 42,
+                      width: isTablet ? 46 : 42,
+                      height: isTablet ? 46 : 42,
                       iconColor: category.color,
                     ),
                   ),
@@ -457,8 +500,8 @@ class _CategoryCatalogCard extends StatelessWidget {
                         category.displayTitle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: isTablet ? 20 : 18,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF182028),
                           height: 1.15,

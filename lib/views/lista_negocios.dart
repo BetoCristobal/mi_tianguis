@@ -11,6 +11,9 @@ class ListaNegocios extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = FirestoreService.instance;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool isTablet = screenWidth >= 720;
+    final double maxContentWidth = screenWidth >= 1200 ? 1120 : 960;
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final String titulo = args['productTitulo'] as String? ?? 'Categoria';
@@ -62,175 +65,223 @@ class ListaNegocios extends StatelessWidget {
               .where((doc) => doc.id != featuredDoc.id)
               .toList(growable: false);
 
-          return CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 186,
-                pinned: true,
-                backgroundColor: const Color(0xFF7A3E2B),
-                foregroundColor: Colors.white,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFFB5651D),
-                          Color(0xFF7A3E2B),
-                        ],
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth),
+              child: CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: isTablet ? 220 : 186,
+                    pinned: true,
+                    backgroundColor: const Color(0xFF7A3E2B),
+                    foregroundColor: Colors.white,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFFB5651D),
+                              Color(0xFF7A3E2B),
+                            ],
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: -28,
+                              right: -18,
+                              child: Container(
+                                width: 126,
+                                height: 126,
+                                decoration: BoxDecoration(
+                                  color: const Color.fromRGBO(255, 255, 255, 0.10),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: -30,
+                              right: 38,
+                              child: Container(
+                                width: 82,
+                                height: 82,
+                                decoration: BoxDecoration(
+                                  color: const Color.fromRGBO(255, 244, 214, 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                              ),
+                            ),
+                            SafeArea(
+                              bottom: false,
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  isTablet ? 28 : 20,
+                                  24,
+                                  isTablet ? 28 : 20,
+                                  isTablet ? 28 : 24,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color.fromRGBO(
+                                          255,
+                                          244,
+                                          214,
+                                          0.95,
+                                        ),
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                      child: const Text(
+                                        'Seleccion local',
+                                        style: TextStyle(
+                                          color: Color(0xFF6A3A16),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Text(
+                                      titulo,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: isTablet ? 38 : 31,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '${docs.length} opciones para explorar en esta categoria.',
+                                      style: const TextStyle(
+                                        color: Color(0xFFF9EAD9),
+                                        fontSize: 14.5,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          top: -28,
-                          right: -18,
-                          child: Container(
-                            width: 126,
-                            height: 126,
-                            decoration: BoxDecoration(
-                              color: const Color.fromRGBO(255, 255, 255, 0.10),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isTablet ? 24 : 16,
+                        18,
+                        isTablet ? 24 : 16,
+                        12,
+                      ),
+                      child: _FeaturedBusinessCard(
+                        business: featuredDoc,
+                        isTablet: isTablet,
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            'detallesNegocio',
+                            arguments: {'negocioId': featuredDoc.id},
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  if (otherDocs.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          isTablet ? 24 : 18,
+                          6,
+                          isTablet ? 24 : 18,
+                          6,
+                        ),
+                        child: const Text(
+                          'Mas negocios en esta categoria',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF2F241F),
                           ),
                         ),
-                        Positioned(
-                          bottom: -30,
-                          right: 38,
-                          child: Container(
-                            width: 82,
-                            height: 82,
-                            decoration: BoxDecoration(
-                              color: const Color.fromRGBO(255, 244, 214, 0.12),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          isTablet ? 24 : 18,
+                          0,
+                          isTablet ? 24 : 18,
+                          10,
+                        ),
+                        child: const Text(
+                          'Revisa otras opciones disponibles y abre su ficha completa.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6E625C),
+                            height: 1.4,
                           ),
                         ),
-                        SafeArea(
-                          bottom: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color.fromRGBO(255, 244, 214, 0.95),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: const Text(
-                                    'Seleccion local',
-                                    style: TextStyle(
-                                      color: Color(0xFF6A3A16),
-                                      fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isTablet ? 24 : 16,
+                        0,
+                        isTablet ? 24 : 16,
+                        24,
+                      ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final int columns = constraints.maxWidth >= 900 ? 2 : 1;
+                          final double spacing = 12;
+                          final double itemWidth =
+                              (constraints.maxWidth - (spacing * (columns - 1))) /
+                                  columns;
+
+                          return Wrap(
+                            spacing: spacing,
+                            runSpacing: spacing,
+                            children: otherDocs
+                                .map(
+                                  (item) => SizedBox(
+                                    width: itemWidth,
+                                    child: _BusinessListTile(
+                                      nombre: item.nombre,
+                                      descripcion: item.descripcion,
+                                      direccion: item.direccion,
+                                      imageUrl: item.imageUrl,
+                                      isTablet: isTablet,
+                                      onTap: () {
+                                        Navigator.pushNamed(
+                                          context,
+                                          'detallesNegocio',
+                                          arguments: {'negocioId': item.id},
+                                        );
+                                      },
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 14),
-                                Text(
-                                  titulo,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 31,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${docs.length} opciones para explorar en esta categoria.',
-                                  style: const TextStyle(
-                                    color: Color(0xFFF9EAD9),
-                                    fontSize: 14.5,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
-                  child: _FeaturedBusinessCard(
-                    business: featuredDoc,
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        'detallesNegocio',
-                        arguments: {'negocioId': featuredDoc.id},
-                      );
-                    },
-                  ),
-                ),
-              ),
-              if (otherDocs.isNotEmpty) ...[
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(18, 6, 18, 6),
-                    child: Text(
-                      'Mas negocios en esta categoria',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2F241F),
+                                )
+                                .toList(),
+                          );
+                        },
                       ),
                     ),
                   ),
-                ),
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(18, 0, 18, 10),
-                    child: Text(
-                      'Revisa otras opciones disponibles y abre su ficha completa.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF6E625C),
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final item = otherDocs[index];
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _BusinessListTile(
-                          nombre: item.nombre,
-                          descripcion: item.descripcion,
-                          direccion: item.direccion,
-                          imageUrl: item.imageUrl,
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              'detallesNegocio',
-                              arguments: {'negocioId': item.id},
-                            );
-                          },
-                        ),
-                      );
-                    },
-                    childCount: otherDocs.length,
-                  ),
-                ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
@@ -241,10 +292,12 @@ class ListaNegocios extends StatelessWidget {
 class _FeaturedBusinessCard extends StatelessWidget {
   const _FeaturedBusinessCard({
     required this.business,
+    required this.isTablet,
     required this.onTap,
   });
 
   final BusinessItem business;
+  final bool isTablet;
   final VoidCallback onTap;
 
   @override
@@ -277,7 +330,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                 child: AspectRatio(
-                  aspectRatio: 16 / 10,
+                  aspectRatio: isTablet ? 16 / 8.5 : 16 / 10,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -335,9 +388,9 @@ class _FeaturedBusinessCard extends StatelessWidget {
                               nombre,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 27,
+                                fontSize: isTablet ? 31 : 27,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -449,6 +502,7 @@ class _BusinessListTile extends StatelessWidget {
     required this.descripcion,
     required this.direccion,
     required this.imageUrl,
+    required this.isTablet,
     required this.onTap,
   });
 
@@ -456,6 +510,7 @@ class _BusinessListTile extends StatelessWidget {
   final String descripcion;
   final String direccion;
   final String imageUrl;
+  final bool isTablet;
   final VoidCallback onTap;
 
   @override
@@ -485,8 +540,8 @@ class _BusinessListTile extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
                   child: SizedBox(
-                    width: 96,
-                    height: 96,
+                    width: isTablet ? 116 : 96,
+                    height: isTablet ? 116 : 96,
                     child: imageUrl.trim().isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: imageUrl,
@@ -510,8 +565,8 @@ class _BusinessListTile extends StatelessWidget {
                         nombre,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: isTablet ? 20 : 18,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF2F241F),
                         ),

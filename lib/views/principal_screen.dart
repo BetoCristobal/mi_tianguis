@@ -45,6 +45,10 @@ class _PrincipalScreenState extends State<PrincipalScreen>
   @override
   Widget build(BuildContext context) {
     final bool isSearching = _query.trim().isNotEmpty;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool isTablet = screenWidth >= 720;
+    final double horizontalPadding = isTablet ? 24 : 12;
+    final double maxContentWidth = screenWidth >= 1200 ? 1120 : 960;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F0E8),
@@ -95,51 +99,70 @@ class _PrincipalScreenState extends State<PrincipalScreen>
           ),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-                child: _SearchShell(
-                  child: _SearchBar(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    onChanged: (value) {
-                      setState(() {
-                        _query = value;
-                      });
-                    },
-                    onClear: () {
-                      _searchController.clear();
-                      setState(() {
-                        _query = '';
-                      });
-                      FocusScope.of(context).unfocus();
-                    },
+              Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxContentWidth),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      4,
+                      horizontalPadding,
+                      10,
+                    ),
+                    child: _SearchShell(
+                      child: _SearchBar(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        onChanged: (value) {
+                          setState(() {
+                            _query = value;
+                          });
+                        },
+                        onClear: () {
+                          _searchController.clear();
+                          setState(() {
+                            _query = '';
+                          });
+                          FocusScope.of(context).unfocus();
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ),
               Expanded(
-                child: FutureBuilder<void>(
-                  future: _syncFuture,
-                  builder: (context, snapshot) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        child: isSearching
-                            ? _SearchResultsList(
-                                key: const ValueKey('search-results'),
-                                query: _query,
-                                items: _firestoreService.businesses
-                                    .map(_BusinessSearchItem.fromBusiness)
-                                    .toList(growable: false),
-                                isLoading:
-                                    snapshot.connectionState ==
-                                    ConnectionState.waiting,
-                                hasError: snapshot.hasError,
-                              )
-                            : const ProductGrid(key: ValueKey('product-grid')),
-                      ),
-                    );
-                  },
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxContentWidth),
+                    child: FutureBuilder<void>(
+                      future: _syncFuture,
+                      builder: (context, snapshot) {
+                        return Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? horizontalPadding : 10,
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            child: isSearching
+                                ? _SearchResultsList(
+                                    key: const ValueKey('search-results'),
+                                    query: _query,
+                                    items: _firestoreService.businesses
+                                        .map(_BusinessSearchItem.fromBusiness)
+                                        .toList(growable: false),
+                                    isLoading:
+                                        snapshot.connectionState ==
+                                        ConnectionState.waiting,
+                                    hasError: snapshot.hasError,
+                                  )
+                                : const ProductGrid(
+                                    key: ValueKey('product-grid'),
+                                  ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ],
