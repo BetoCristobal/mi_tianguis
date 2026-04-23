@@ -1,4 +1,4 @@
-package com.example.mi_tianguis
+package com.pexel.mitianguis.app
 
 import io.flutter.embedding.android.FlutterActivity
 
