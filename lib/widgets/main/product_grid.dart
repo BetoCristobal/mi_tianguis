@@ -28,8 +28,8 @@ class ProductGrid extends StatelessWidget {
         if (snapshot.hasError) {
           return const _GridStatusView(
             icon: Icons.cloud_off_rounded,
-            title: 'No se pudieron cargar las categorias',
-            message: 'Revisa tu conexion e intenta nuevamente.',
+            title: 'No se pudieron cargar las categor\u00edas',
+            message: 'Revisa tu conexión e intenta nuevamente.',
           );
         }
 
@@ -40,7 +40,7 @@ class ProductGrid extends StatelessWidget {
         if (categories.isEmpty) {
           return const _GridStatusView(
             icon: Icons.category_outlined,
-            title: 'Aun no hay categorias',
+            title: 'A\u00fan no hay categor\u00edas',
             message: 'Agrega documentos en Firestore para mostrar el directorio.',
           );
         }
@@ -78,7 +78,7 @@ class ProductGrid extends StatelessWidget {
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4),
                           child: Text(
-                            'Explora mas categorias',
+                            'Explora más categorías',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w800,
@@ -90,7 +90,7 @@ class ProductGrid extends StatelessWidget {
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4),
                           child: Text(
-                            'Selecciona una categoria para abrir negocios locales registrados.',
+                            'Selecciona una categoría para abrir negocios locales registrados.',
                             style: TextStyle(
                               color: Color(0xFF5D6470),
                               height: 1.45,
@@ -212,23 +212,9 @@ class _HeroBanner extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color.fromRGBO(244, 211, 94, 0.95),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Directorio del barrio',
-                  style: TextStyle(
-                    color: Color(0xFF3A2D00),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
               const SizedBox(height: 16),
               Text(
-                'Encuentra negocios locales por categoria',
+                'Encuentra negocios locales por categoría',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: isTablet ? 36 : 29,
@@ -238,42 +224,14 @@ class _HeroBanner extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Descubre opciones cercanas y navega por rubros con una portada mas clara y visual.',
+                'Descubre opciones cercanas y navega por rubros con una portada más clara y visual.',
                 style: TextStyle(
                   color: Color(0xFFE7F5EE),
                   fontSize: 14.5,
                   height: 1.45,
                 ),
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color.fromRGBO(255, 255, 255, 0.10),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: const Color.fromRGBO(255, 255, 255, 0.12),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.storefront_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '$totalCategories categorias disponibles',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              
             ],
           ),
         ],
@@ -343,7 +301,7 @@ class _FeaturedCategoryCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: const Text(
-                          'Categoria destacada',
+                          'Categoría destacada',
                           style: TextStyle(
                             color: Color(0xFF202020),
                             fontWeight: FontWeight.w700,

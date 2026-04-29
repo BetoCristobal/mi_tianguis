@@ -16,16 +16,16 @@ class ListaNegocios extends StatelessWidget {
     final double maxContentWidth = screenWidth >= 1200 ? 1120 : 960;
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    final String titulo = args['productTitulo'] as String? ?? 'Categoria';
+    final String titulo = args['productTitulo'] as String? ?? 'Categoría';
     final DocumentReference<Map<String, dynamic>>? categoriaRef =
         args['categoriaRef'] as DocumentReference<Map<String, dynamic>>?;
 
     if (categoriaRef == null) {
       return const _ListaStatusView(
-        titulo: 'Categoria',
+        titulo: 'Categoría',
         icon: Icons.category_outlined,
-        title: 'Falta informacion de la categoria',
-        message: 'No se pudo identificar la categoria seleccionada.',
+        title: 'Falta información de la categoría',
+        message: 'No se pudo identificar la categoría seleccionada.',
       );
     }
 
@@ -43,7 +43,7 @@ class ListaNegocios extends StatelessWidget {
             return _ListaStatusView(
               titulo: titulo,
               icon: Icons.cloud_off_rounded,
-              title: 'No se pudo cargar la categoria',
+              title: 'No se pudo cargar la categoría',
               message: 'Intenta nuevamente en unos momentos.',
             );
           }
@@ -55,7 +55,7 @@ class ListaNegocios extends StatelessWidget {
               titulo: titulo,
               icon: Icons.storefront_outlined,
               title: 'Sin negocios por ahora',
-              message: 'Aun no hay negocios disponibles en $titulo.',
+              message: 'Aún no hay negocios disponibles en $titulo.',
             );
           }
 
@@ -141,7 +141,7 @@ class ListaNegocios extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(999),
                                       ),
                                       child: const Text(
-                                        'Seleccion local',
+                                        'Selección local',
                                         style: TextStyle(
                                           color: Color(0xFF6A3A16),
                                           fontWeight: FontWeight.w700,
@@ -159,7 +159,7 @@ class ListaNegocios extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      '${docs.length} opciones para explorar en esta categoria.',
+                                      '${docs.length} opciones para explorar en esta categoría.',
                                       style: const TextStyle(
                                         color: Color(0xFFF9EAD9),
                                         fontSize: 14.5,
@@ -206,7 +206,7 @@ class ListaNegocios extends StatelessWidget {
                           6,
                         ),
                         child: const Text(
-                          'Mas negocios en esta categoria',
+                          'Más negocios en esta categoría',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -595,7 +595,7 @@ class _BusinessListTile extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 direccion.trim().isEmpty
-                                    ? 'Direccion no disponible'
+                                    ? 'Dirección no disponible'
                                     : direccion,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

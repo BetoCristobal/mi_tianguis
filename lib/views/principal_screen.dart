@@ -17,12 +17,6 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
   Future<void> _syncFuture = Future.value();
   String _query = '';
 
-  void _refreshData() {
-    setState(() {
-      _syncFuture = _firestoreService.ensureSynchronized(forceRefresh: true);
-    });
-  }
-
   @override
   void initState() {
     super.initState();
@@ -53,34 +47,6 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleSpacing: 18,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: IconButton(
-              tooltip: 'Actualizar',
-              onPressed: _refreshData,
-              icon: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromRGBO(53, 54, 66, 0.08),
-                      blurRadius: 14,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.refresh_rounded,
-                  color: Color(0xFF1B4332),
-                ),
-              ),
-            ),
-          ),
-        ],
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -252,7 +218,7 @@ class _SearchBar extends StatelessWidget {
         ),
         decoration: InputDecoration(
           border: InputBorder.none,
-          hintText: 'Buscar negocios, descripcion o productos/servicios',
+          hintText: 'Buscar negocios, descripción o productos/servicios',
           hintStyle: const TextStyle(
             color: Color(0xFF7C8793),
             fontSize: 14,
@@ -435,7 +401,7 @@ class _SearchBusinessCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         item.descripcion.isEmpty
-                            ? 'Abre la ficha para ver mas detalles.'
+                            ? 'Abre la ficha para ver más detalles.'
                             : item.descripcion,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,

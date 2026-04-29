@@ -38,7 +38,7 @@ class DetallesNegocioScreen extends StatelessWidget {
   }
 
   Future<void> _openInMaps(double lat, double lng, {String? label}) async {
-    final title = Uri.encodeComponent(label ?? 'Ubicacion');
+    final title = Uri.encodeComponent(label ?? 'Ubicaci\u00f3n');
 
     final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng($title)');
     if (await canLaunchUrl(geoUri)) {
@@ -75,7 +75,7 @@ class DetallesNegocioScreen extends StatelessWidget {
     final digits = _normalizePhone(phone);
 
     if (digits == null) {
-      _showOpenWarning(context, 'El numero de WhatsApp no es valido.');
+      _showOpenWarning(context, 'El n\u00famero de WhatsApp no es v\u00e1lido.');
       return;
     }
 
@@ -96,14 +96,14 @@ class DetallesNegocioScreen extends StatelessWidget {
 
     _showOpenWarning(
       context,
-      'No se pudo abrir WhatsApp. Verifica que este instalado o que tengas sesion activa.',
+      'No se pudo abrir WhatsApp. Verifica que est\u00e9 instalado o que tengas sesi\u00f3n activa.',
     );
   }
 
   Future<void> _openFacebook(BuildContext context, String value) async {
     final normalized = _normalizeFacebookUrl(value);
     if (normalized == null) {
-      _showOpenWarning(context, 'El enlace de Facebook no es valido.');
+      _showOpenWarning(context, 'El enlace de Facebook no es v\u00e1lido.');
       return;
     }
 
@@ -126,14 +126,14 @@ class DetallesNegocioScreen extends StatelessWidget {
 
     _showOpenWarning(
       context,
-      'No se pudo abrir Facebook. Verifica que la app este instalada o inicia sesion en el navegador.',
+      'No se pudo abrir Facebook. Verifica que la app est\u00e9 instalada o inicia sesi\u00f3n en el navegador.',
     );
   }
 
   Future<void> _openExternalLink(BuildContext context, String url) async {
     final normalized = _normalizeUrl(url);
     if (normalized == null) {
-      _showOpenWarning(context, 'El enlace no es valido.');
+      _showOpenWarning(context, 'El enlace no es v\u00e1lido.');
       return;
     }
 
@@ -145,7 +145,7 @@ class DetallesNegocioScreen extends StatelessWidget {
 
     _showOpenWarning(
       context,
-      'No se pudo abrir el enlace. Intenta de nuevo mas tarde.',
+      'No se pudo abrir el enlace. Intenta de nuevo m\u00e1s tarde.',
     );
   }
 
@@ -243,7 +243,7 @@ class DetallesNegocioScreen extends StatelessWidget {
             return const _StatusView(
               icon: Icons.wifi_off_rounded,
               title: 'No se pudo cargar el negocio',
-              message: 'Revisa tu conexion e intenta nuevamente.',
+              message: 'Revisa tu conexi\u00f3n e intenta nuevamente.',
             );
           }
 
@@ -253,7 +253,7 @@ class DetallesNegocioScreen extends StatelessWidget {
             return const _StatusView(
               icon: Icons.storefront_outlined,
               title: 'Negocio no disponible',
-              message: 'No se encontro informacion para este negocio.',
+              message: 'No se encontr\u00f3 informaci\u00f3n para este negocio.',
             );
           }
 
@@ -286,89 +286,140 @@ class DetallesNegocioScreen extends StatelessWidget {
                     backgroundColor: const Color(0xFF1B4332),
                     foregroundColor: Colors.white,
                     flexibleSpace: FlexibleSpaceBar(
-                      background: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (imageUrl.isNotEmpty)
-                            GestureDetector(
-                              onTap: () => _openImageViewer(
-                                context,
-                                imageUrl: imageUrl,
-                                heroTag: 'business-image-$negocioId',
-                              ),
-                              child: Hero(
-                                tag: 'business-image-$negocioId',
-                                child: AppImageView(
-                                  imagePath: imageUrl,
-                                  fit: BoxFit.cover,
-                                  placeholderColor: const Color(0xFFE9E1D5),
-                                  fallback: _HeaderFallback(title: nombre),
+                      background: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: imageUrl.isEmpty
+                              ? null
+                              : () => _openImageViewer(
+                                    context,
+                                    imageUrl: imageUrl,
+                                    heroTag: 'business-image-$negocioId',
+                                  ),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              if (imageUrl.isNotEmpty)
+                                Hero(
+                                  tag: 'business-image-$negocioId',
+                                  child: AppImageView(
+                                    imagePath: imageUrl,
+                                    fit: BoxFit.cover,
+                                    placeholderColor: const Color(0xFFE9E1D5),
+                                    fallback: _HeaderFallback(title: nombre),
+                                  ),
+                                )
+                              else
+                                _HeaderFallback(title: nombre),
+                              const DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color.fromRGBO(0, 0, 0, 0.10),
+                                      Color.fromRGBO(0, 0, 0, 0.68),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            )
-                          else
-                            _HeaderFallback(title: nombre),
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Color.fromRGBO(0, 0, 0, 0.10),
-                                  Color.fromRGBO(0, 0, 0, 0.68),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            left: isTablet ? 28 : 20,
-                            right: isTablet ? 28 : 20,
-                            bottom: 24,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
+                              Positioned(
+                                top: isTablet ? 26 : 22,
+                                right: isTablet ? 26 : 18,
+                                child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
+                                    horizontal: 10,
+                                    vertical: 8,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF4D35E),
+                                    color: const Color.fromRGBO(
+                                      255,
+                                      255,
+                                      255,
+                                      0.16,
+                                    ),
                                     borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: const Text(
-                                    'Negocio local',
-                                    style: TextStyle(
-                                      color: Color(0xFF3A2D00),
-                                      fontWeight: FontWeight.w700,
+                                    border: Border.all(
+                                      color: const Color.fromRGBO(
+                                        255,
+                                        255,
+                                        255,
+                                        0.22,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  nombre.isEmpty ? 'Sin nombre' : nombre,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: isTablet ? 34 : 28,
-                                    fontWeight: FontWeight.w800,
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.zoom_in_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Toca para ampliar',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12.5,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                if (direccion.trim().isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    direccion,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Color(0xFFF5F5F5),
-                                      fontSize: 14,
+                              ),
+                              Positioned(
+                                left: isTablet ? 28 : 20,
+                                right: isTablet ? 28 : 20,
+                                bottom: 24,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF4D35E),
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                      child: const Text(
+                                        'Negocio local',
+                                        style: TextStyle(
+                                          color: Color(0xFF3A2D00),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      nombre.isEmpty ? 'Sin nombre' : nombre,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: isTablet ? 34 : 28,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    if (direccion.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        direccion,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFFF5F5F5),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -416,7 +467,8 @@ class DetallesNegocioScreen extends StatelessWidget {
                                     onImageTap: () => _openImageViewer(
                                       context,
                                       imageUrl: imageUrl,
-                                      heroTag: 'business-image-$negocioId-aside',
+                                      heroTag:
+                                          'business-image-$negocioId-aside',
                                     ),
                                   ),
                                 ),
@@ -546,11 +598,11 @@ class _DetailsContent extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         _InfoSection(
-          title: 'Descripcion',
+          title: 'Descripci\u00f3n',
           icon: Icons.description_outlined,
           child: Text(
             descripcion.trim().isEmpty
-                ? 'Este negocio aun no tiene descripcion.'
+                ? 'Este negocio a\u00fan no tiene descripci\u00f3n.'
                 : descripcion,
             style: const TextStyle(
               height: 1.55,
