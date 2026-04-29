@@ -1,9 +1,9 @@
 import 'dart:math';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mi_tianguis/services/firestore_service.dart';
+import 'package:mi_tianguis/widgets/shared/app_image_view.dart';
 
 class ListaNegocios extends StatelessWidget {
   const ListaNegocios({super.key});
@@ -261,7 +261,7 @@ class ListaNegocios extends StatelessWidget {
                                       nombre: item.nombre,
                                       descripcion: item.descripcion,
                                       direccion: item.direccion,
-                                      imageUrl: item.imageUrl,
+                                      imageUrl: item.preferredImagePath,
                                       isTablet: isTablet,
                                       onTap: () {
                                         Navigator.pushNamed(
@@ -305,7 +305,7 @@ class _FeaturedBusinessCard extends StatelessWidget {
     final String nombre = business.nombre.isEmpty ? 'Sin nombre' : business.nombre;
     final String descripcion = business.descripcion;
     final String direccion = business.direccion;
-    final String imageUrl = business.imageUrl;
+    final String imageUrl = business.preferredImagePath;
 
     return Material(
       color: Colors.transparent,
@@ -335,15 +335,10 @@ class _FeaturedBusinessCard extends StatelessWidget {
                     fit: StackFit.expand,
                     children: [
                       if (imageUrl.trim().isNotEmpty)
-                        CachedNetworkImage(
-                          imageUrl: imageUrl,
+                        AppImageView(
+                          imagePath: imageUrl,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: const Color(0xFFE8D9C8),
-                            child: const Center(child: CircularProgressIndicator()),
-                          ),
-                          errorWidget: (context, url, error) =>
-                              const _ImageFallback(iconSize: 58),
+                          fallback: const _ImageFallback(iconSize: 58),
                         )
                       else
                         const _ImageFallback(iconSize: 58),
@@ -543,15 +538,10 @@ class _BusinessListTile extends StatelessWidget {
                     width: isTablet ? 116 : 96,
                     height: isTablet ? 116 : 96,
                     child: imageUrl.trim().isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
+                        ? AppImageView(
+                            imagePath: imageUrl,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: const Color(0xFFE8D9C8),
-                              child: const Center(child: CircularProgressIndicator()),
-                            ),
-                            errorWidget: (context, url, error) =>
-                                const _ImageFallback(iconSize: 34),
+                            fallback: const _ImageFallback(iconSize: 34),
                           )
                         : const _ImageFallback(iconSize: 34),
                   ),

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:mi_tianguis/firebase_options.dart';
+import 'package:mi_tianguis/services/firestore_service.dart';
 import 'package:mi_tianguis/views/detalles_negocio_screen.dart';
 import 'package:mi_tianguis/views/lista_negocios.dart';
 import 'package:mi_tianguis/views/principal_screen.dart';
@@ -15,6 +16,8 @@ void main() async {
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
+
+  await FirestoreService.instance.initialize();
 
   runApp(const MainApp());
 }

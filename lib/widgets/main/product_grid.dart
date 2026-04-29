@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mi_tianguis/services/firestore_service.dart';
+import 'package:mi_tianguis/widgets/shared/app_image_view.dart';
 
 class ProductGrid extends StatelessWidget {
   const ProductGrid({super.key});
@@ -591,21 +592,23 @@ class _CategoryImage extends StatelessWidget {
     }
 
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return Image.network(
-        imagePath,
+      return AppImageView(
+        imagePath: imagePath,
         width: width,
         height: height,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => fallback,
+        progressSize: width * 0.32,
+        fallback: fallback,
       );
     }
 
-    return Image.asset(
-      imagePath,
+    return AppImageView(
+      imagePath: imagePath,
       width: width,
       height: height,
       fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) => fallback,
+      progressSize: width * 0.32,
+      fallback: fallback,
     );
   }
 }
@@ -681,7 +684,7 @@ class _CategoryItem {
     return _CategoryItem(
       titulo: item.titulo,
       reference: item.reference,
-      image: item.image,
+      image: item.preferredImagePath,
       color: item.color,
       description: item.description,
     );

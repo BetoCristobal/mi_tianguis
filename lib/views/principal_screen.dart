@@ -1,7 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:mi_tianguis/services/firestore_service.dart';
 import 'package:mi_tianguis/widgets/main/product_grid.dart';
+import 'package:mi_tianguis/widgets/shared/app_image_view.dart';
 
 class PrincipalScreen extends StatefulWidget {
   const PrincipalScreen({super.key});
@@ -10,33 +10,27 @@ class PrincipalScreen extends StatefulWidget {
   State<PrincipalScreen> createState() => _PrincipalScreenState();
 }
 
-class _PrincipalScreenState extends State<PrincipalScreen>
-    with WidgetsBindingObserver {
+class _PrincipalScreenState extends State<PrincipalScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final FirestoreService _firestoreService = FirestoreService.instance;
   Future<void> _syncFuture = Future.value();
   String _query = '';
 
+  void _refreshData() {
+    setState(() {
+      _syncFuture = _firestoreService.ensureSynchronized(forceRefresh: true);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _syncFuture = _firestoreService.ensureSynchronized();
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted) {
-      setState(() {
-        _syncFuture = _firestoreService.ensureSynchronized(forceRefresh: true);
-      });
-    }
-  }
-
-  @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -59,6 +53,34 @@ class _PrincipalScreenState extends State<PrincipalScreen>
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleSpacing: 18,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              tooltip: 'Actualizar',
+              onPressed: _refreshData,
+              icon: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color.fromRGBO(53, 54, 66, 0.08),
+                      blurRadius: 14,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  color: Color(0xFF1B4332),
+                ),
+              ),
+            ),
+          ),
+        ],
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -290,7 +312,7 @@ class _SearchResultsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final normalizedQuery = query.trim().toLowerCase();
+    final normalizedQuery = _normalizeSearchText(query.trim());
 
     if (isLoading && items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -388,20 +410,11 @@ class _SearchBusinessCard extends StatelessWidget {
                   child: SizedBox(
                     width: 94,
                     height: 94,
-                    child: item.imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: item.imageUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: const Color(0xFFE8D9C8),
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) =>
-                                const _ImageFallback(iconSize: 34),
-                          )
-                        : const _ImageFallback(iconSize: 34),
+                    child: AppImageView(
+                      imagePath: item.imageUrl,
+                      fit: BoxFit.cover,
+                      fallback: const _ImageFallback(iconSize: 34),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -580,7 +593,7 @@ class _BusinessSearchItem {
       nombre: item.nombre,
       descripcion: item.descripcion,
       productosServicios: item.productosServicios,
-      imageUrl: item.imageUrl,
+      imageUrl: item.preferredImagePath,
     );
   }
 
@@ -593,8 +606,34 @@ class _BusinessSearchItem {
       nombre,
       descripcion,
       ...productosServicios,
-    ].join(' ').toLowerCase();
+    ].join(' ');
 
-    return haystack.contains(query);
+    return _normalizeSearchText(haystack).contains(_normalizeSearchText(query));
   }
+}
+
+String _normalizeSearchText(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll('á', 'a')
+      .replaceAll('à', 'a')
+      .replaceAll('ä', 'a')
+      .replaceAll('â', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('è', 'e')
+      .replaceAll('ë', 'e')
+      .replaceAll('ê', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ì', 'i')
+      .replaceAll('ï', 'i')
+      .replaceAll('î', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ò', 'o')
+      .replaceAll('ö', 'o')
+      .replaceAll('ô', 'o')
+      .replaceAll('ú', 'u')
+      .replaceAll('ù', 'u')
+      .replaceAll('ü', 'u')
+      .replaceAll('û', 'u')
+      .replaceAll('ñ', 'n');
 }

@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:mi_tianguis/services/firestore_service.dart';
+import 'package:mi_tianguis/widgets/shared/app_image_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class DetallesNegocioScreen extends StatelessWidget {
@@ -60,53 +60,93 @@ class DetallesNegocioScreen extends StatelessWidget {
     await launchUrl(webUri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _openWhatsApp(String phone) async {
+  void _showOpenWarning(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  Future<void> _openWhatsApp(BuildContext context, String phone) async {
     final digits = _normalizePhone(phone);
 
     if (digits == null) {
+      _showOpenWarning(context, 'El numero de WhatsApp no es valido.');
       return;
     }
 
     final appUri = Uri.parse('whatsapp://send?phone=$digits');
-    if (await launchUrl(
-      appUri,
-      mode: LaunchMode.externalNonBrowserApplication,
-    )) {
+    if (await canLaunchUrl(appUri) &&
+        await launchUrl(
+          appUri,
+          mode: LaunchMode.externalNonBrowserApplication,
+        )) {
       return;
     }
 
     final webUri = Uri.parse('https://api.whatsapp.com/send?phone=$digits');
-    await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(webUri) &&
+        await launchUrl(webUri, mode: LaunchMode.externalApplication)) {
+      return;
+    }
+
+    _showOpenWarning(
+      context,
+      'No se pudo abrir WhatsApp. Verifica que este instalado o que tengas sesion activa.',
+    );
   }
 
-  Future<void> _openFacebook(String value) async {
+  Future<void> _openFacebook(BuildContext context, String value) async {
     final normalized = _normalizeFacebookUrl(value);
     if (normalized == null) {
+      _showOpenWarning(context, 'El enlace de Facebook no es valido.');
       return;
     }
 
     final appUri = Uri.parse(
       'fb://facewebmodal/f?href=${Uri.encodeComponent(normalized)}',
     );
-    if (await launchUrl(
-      appUri,
-      mode: LaunchMode.externalNonBrowserApplication,
-    )) {
+    if (await canLaunchUrl(appUri) &&
+        await launchUrl(
+          appUri,
+          mode: LaunchMode.externalNonBrowserApplication,
+        )) {
       return;
     }
 
     final webUri = Uri.parse(normalized);
-    await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(webUri) &&
+        await launchUrl(webUri, mode: LaunchMode.externalApplication)) {
+      return;
+    }
+
+    _showOpenWarning(
+      context,
+      'No se pudo abrir Facebook. Verifica que la app este instalada o inicia sesion en el navegador.',
+    );
   }
 
-  Future<void> _openExternalLink(String url) async {
+  Future<void> _openExternalLink(BuildContext context, String url) async {
     final normalized = _normalizeUrl(url);
     if (normalized == null) {
+      _showOpenWarning(context, 'El enlace no es valido.');
       return;
     }
 
     final uri = Uri.parse(normalized);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri) &&
+        await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      return;
+    }
+
+    _showOpenWarning(
+      context,
+      'No se pudo abrir el enlace. Intenta de nuevo mas tarde.',
+    );
   }
 
   String? _normalizePhone(String phone) {
@@ -223,7 +263,7 @@ class DetallesNegocioScreen extends StatelessWidget {
           final String whatsapp = business.whatsapp;
           final String facebook = business.facebook;
           final String instagram = business.instagram;
-          final String imageUrl = business.imageUrl;
+          final String imageUrl = business.preferredImagePath;
           final List<String> servicios = business.productosServicios;
 
           final GeoPoint? gp = business.coordenadas;
@@ -258,17 +298,11 @@ class DetallesNegocioScreen extends StatelessWidget {
                               ),
                               child: Hero(
                                 tag: 'business-image-$negocioId',
-                                child: CachedNetworkImage(
-                                  imageUrl: imageUrl,
+                                child: AppImageView(
+                                  imagePath: imageUrl,
                                   fit: BoxFit.cover,
-                                  placeholder: (context, url) => Container(
-                                    color: const Color(0xFFE9E1D5),
-                                    child: const Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  ),
-                                  errorWidget: (context, url, error) =>
-                                      _HeaderFallback(title: nombre),
+                                  placeholderColor: const Color(0xFFE9E1D5),
+                                  fallback: _HeaderFallback(title: nombre),
                                 ),
                               ),
                             )
@@ -450,9 +484,9 @@ class _DetailsContent extends StatelessWidget {
   final String nombre;
   final String descripcion;
   final List<String> servicios;
-  final Future<void> Function(String) openWhatsApp;
-  final Future<void> Function(String) openFacebook;
-  final Future<void> Function(String) openExternalLink;
+  final Future<void> Function(BuildContext, String) openWhatsApp;
+  final Future<void> Function(BuildContext, String) openFacebook;
+  final Future<void> Function(BuildContext, String) openExternalLink;
   final Future<void> Function(double, double, {String? label}) openInMaps;
 
   @override
@@ -473,7 +507,7 @@ class _DetailsContent extends StatelessWidget {
                 ),
                 label: 'WhatsApp',
                 color: const Color(0xFF1FA855),
-                onTap: () => openWhatsApp(whatsappPhone),
+                onTap: () => openWhatsApp(context, whatsappPhone),
               ),
             if (hasFacebook)
               _ActionChip(
@@ -484,7 +518,7 @@ class _DetailsContent extends StatelessWidget {
                 ),
                 label: 'Facebook',
                 color: const Color(0xFF1877F2),
-                onTap: () => openFacebook(facebookUrl),
+                onTap: () => openFacebook(context, facebookUrl),
               ),
             if (hasInstagram)
               _ActionChip(
@@ -495,7 +529,7 @@ class _DetailsContent extends StatelessWidget {
                 ),
                 label: 'Instagram',
                 color: const Color(0xFFE1306C),
-                onTap: () => openExternalLink(instagramUrl),
+                onTap: () => openExternalLink(context, instagramUrl),
               ),
             if (hasMapLocation)
               _ActionChip(
@@ -616,17 +650,11 @@ class _DetailsAside extends StatelessWidget {
                       onTap: onImageTap,
                       child: Hero(
                         tag: heroTag,
-                        child: CachedNetworkImage(
-                          imageUrl: imageUrl,
+                        child: AppImageView(
+                          imagePath: imageUrl,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: const Color(0xFFE9E1D5),
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) =>
-                              _HeaderFallback(title: nombre),
+                          placeholderColor: const Color(0xFFE9E1D5),
+                          fallback: _HeaderFallback(title: nombre),
                         ),
                       ),
                     )
@@ -734,13 +762,11 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
                       transformationController: _transformationController,
                       child: Hero(
                         tag: widget.heroTag,
-                        child: CachedNetworkImage(
-                          imageUrl: widget.imageUrl,
+                        child: AppImageView(
+                          imagePath: widget.imageUrl,
                           fit: BoxFit.contain,
-                          placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                          errorWidget: (context, url, error) => Container(
+                          placeholderColor: Colors.transparent,
+                          fallback: Container(
                             width: 260,
                             height: 260,
                             alignment: Alignment.center,
