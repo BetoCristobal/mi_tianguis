@@ -17,6 +17,47 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
   Future<void> _syncFuture = Future.value();
   String _query = '';
 
+  void _showSyncInfo() {
+    final categoriesSync = _firestoreService.categoriesLastSync;
+    final businessesSync = _firestoreService.businessesLastSync;
+
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Última sincronización'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Categorías: ${_formatSyncDate(categoriesSync)}',
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Negocios: ${_formatSyncDate(businessesSync)}',
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Usa esta referencia para saber qué hora ya detectó la app.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF6C6F76),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +88,34 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleSpacing: 18,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              tooltip: 'Información',
+              onPressed: _showSyncInfo,
+              icon: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color.fromRGBO(53, 54, 66, 0.08),
+                      blurRadius: 14,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  color: Color(0xFF1B4332),
+                ),
+              ),
+            ),
+          ),
+        ],
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -159,6 +228,16 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
       ),
     );
   }
+}
+
+String _formatSyncDate(DateTime? value) {
+  if (value == null) {
+    return 'Sin sincronización';
+  }
+
+  String twoDigits(int number) => number.toString().padLeft(2, '0');
+
+  return '${twoDigits(value.day)}/${twoDigits(value.month)}/${value.year} ${twoDigits(value.hour)}:${twoDigits(value.minute)}';
 }
 
 class _SearchShell extends StatelessWidget {

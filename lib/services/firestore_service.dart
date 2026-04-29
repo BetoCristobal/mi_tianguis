@@ -26,12 +26,20 @@ class FirestoreService {
 
   List<CategoryItem> _categories = const [];
   List<BusinessItem> _businesses = const [];
+  int _categoriesSyncMillis = 0;
+  int _businessesSyncMillis = 0;
   bool _initialized = false;
   bool _hasCompletedLaunchSync = false;
   Future<void>? _ongoingSync;
 
   List<CategoryItem> get categories => List.unmodifiable(_categories);
   List<BusinessItem> get businesses => List.unmodifiable(_businesses);
+  DateTime? get categoriesLastSync => _categoriesSyncMillis > 0
+      ? DateTime.fromMillisecondsSinceEpoch(_categoriesSyncMillis)
+      : null;
+  DateTime? get businessesLastSync => _businessesSyncMillis > 0
+      ? DateTime.fromMillisecondsSinceEpoch(_businessesSyncMillis)
+      : null;
 
   Future<void> initialize() async {
     if (_initialized) {
@@ -86,6 +94,8 @@ class FirestoreService {
         (syncBox.get(_categoriesSyncMillisKey) as int?) ?? 0;
     var localBusinessesSyncMillis =
         (syncBox.get(_businessesSyncMillisKey) as int?) ?? 0;
+    _categoriesSyncMillis = localCategoriesSyncMillis;
+    _businessesSyncMillis = localBusinessesSyncMillis;
 
     _loadLocalSnapshot();
 
@@ -158,6 +168,7 @@ class FirestoreService {
 
       localCategoriesSyncMillis = remoteCategoriesMillis;
       await syncBox.put(_categoriesSyncMillisKey, localCategoriesSyncMillis);
+      _categoriesSyncMillis = localCategoriesSyncMillis;
     }
 
     if (remoteBusinessesMillis > localBusinessesSyncMillis) {
@@ -182,6 +193,7 @@ class FirestoreService {
 
       localBusinessesSyncMillis = remoteBusinessesMillis;
       await syncBox.put(_businessesSyncMillisKey, localBusinessesSyncMillis);
+      _businessesSyncMillis = localBusinessesSyncMillis;
     }
 
     await _repairMissingLocalImages();
@@ -254,6 +266,8 @@ class FirestoreService {
 
     await syncBox.put(_categoriesSyncMillisKey, maxCategoryMillis);
     await syncBox.put(_businessesSyncMillisKey, maxBusinessMillis);
+    _categoriesSyncMillis = maxCategoryMillis;
+    _businessesSyncMillis = maxBusinessMillis;
   }
 
   Future<void> _replaceCategories(List<CategoryItem> items) async {
