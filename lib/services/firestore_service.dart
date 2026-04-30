@@ -23,6 +23,7 @@ class FirestoreService {
   late final Directory _imagesRootDirectory;
   late final Directory _categoriesImagesDirectory;
   late final Directory _businessesImagesDirectory;
+  late final Directory _businessGalleryImagesDirectory;
 
   List<CategoryItem> _categories = const [];
   List<BusinessItem> _businesses = const [];
@@ -59,8 +60,12 @@ class FirestoreService {
     _businessesImagesDirectory = Directory(
       '${_imagesRootDirectory.path}/negocios',
     );
+    _businessGalleryImagesDirectory = Directory(
+      '${_imagesRootDirectory.path}/negocios_galeria',
+    );
     await _categoriesImagesDirectory.create(recursive: true);
     await _businessesImagesDirectory.create(recursive: true);
+    await _businessGalleryImagesDirectory.create(recursive: true);
 
     _initialized = true;
     _loadLocalSnapshot();
@@ -312,7 +317,7 @@ class FirestoreService {
       if (item.activo) {
         await box.put(item.id, item.toMap());
       } else {
-        await _deleteImageFile(item.localImagePath);
+        await _deleteBusinessLocalAssets(item);
         await box.delete(item.id);
       }
     }
@@ -333,9 +338,18 @@ class FirestoreService {
   ) async {
     final prepared = <BusinessItem>[];
     for (final item in items) {
-      prepared.add(await _prepareBusinessImage(item));
+      prepared.add(await _prepareBusinessSyncState(item));
     }
     return prepared;
+  }
+
+  Future<BusinessItem> _prepareBusinessSyncState(BusinessItem item) async {
+    final current = _existingBusinessById(item.id);
+    final itemWithGalleryState = await _carryForwardBusinessGalleryState(
+      item,
+      current,
+    );
+    return _prepareBusinessImage(itemWithGalleryState);
   }
 
   Future<CategoryItem> _prepareCategoryImage(CategoryItem item) async {
@@ -378,6 +392,45 @@ class FirestoreService {
     );
 
     return item.copyWith(localImagePath: localPath);
+  }
+
+  Future<BusinessItem> _prepareBusinessGallery(BusinessItem item) async {
+    if (!item.activo || item.galleryUrls.isEmpty) {
+      if (item.localGalleryPaths.isNotEmpty) {
+        await _deleteImageFiles(item.localGalleryPaths);
+        return item.copyWith(localGalleryPaths: const []);
+      }
+      return item;
+    }
+
+    final resolvedPaths = <String>[];
+
+    for (var index = 0; index < item.galleryUrls.length; index++) {
+      final remoteUrl = item.galleryUrls[index].trim();
+      final existingLocalPath =
+          index < item.localGalleryPaths.length ? item.localGalleryPaths[index] : '';
+
+      if (remoteUrl.isEmpty || !remoteUrl.startsWith('http')) {
+        await _deleteImageFile(existingLocalPath);
+        resolvedPaths.add('');
+        continue;
+      }
+
+      if (existingLocalPath.trim().isNotEmpty &&
+          File(existingLocalPath).existsSync()) {
+        resolvedPaths.add(existingLocalPath);
+        continue;
+      }
+
+      final localPath = await _downloadImage(
+        remoteUrl,
+        _businessGalleryImagesDirectory,
+        '${item.id}_$index',
+      );
+      resolvedPaths.add(localPath ?? '');
+    }
+
+    return item.copyWith(localGalleryPaths: resolvedPaths);
   }
 
   Future<String?> _downloadImage(
@@ -433,7 +486,7 @@ class FirestoreService {
 
     for (final item in changedItems.where((item) => !item.activo)) {
       final previous = current[item.id];
-      await _deleteImageFile(previous?.localImagePath ?? item.localImagePath);
+      await _deleteBusinessLocalAssets(previous ?? item);
     }
   }
 
@@ -456,7 +509,7 @@ class FirestoreService {
     final currentIds = currentItems.map((item) => item.id).toSet();
     for (final item in previousItems) {
       if (!currentIds.contains(item.id)) {
-        await _deleteImageFile(item.localImagePath);
+        await _deleteBusinessLocalAssets(item);
       }
     }
   }
@@ -472,6 +525,17 @@ class FirestoreService {
     }
   }
 
+  Future<void> _deleteImageFiles(List<String> paths) async {
+    for (final path in paths) {
+      await _deleteImageFile(path);
+    }
+  }
+
+  Future<void> _deleteBusinessLocalAssets(BusinessItem item) async {
+    await _deleteImageFile(item.localImagePath);
+    await _deleteImageFiles(item.localGalleryPaths);
+  }
+
   Future<void> _cleanupOrphanedImages() async {
     final categoryPaths = _categories
         .map((item) => item.localImagePath)
@@ -483,9 +547,17 @@ class FirestoreService {
         .whereType<String>()
         .where((item) => item.trim().isNotEmpty)
         .toSet();
+    final businessGalleryPaths = _businesses
+        .expand((item) => item.localGalleryPaths)
+        .where((item) => item.trim().isNotEmpty)
+        .toSet();
 
     await _cleanupDirectory(_categoriesImagesDirectory, categoryPaths);
     await _cleanupDirectory(_businessesImagesDirectory, businessPaths);
+    await _cleanupDirectory(
+      _businessGalleryImagesDirectory,
+      businessGalleryPaths,
+    );
   }
 
   Future<void> _cleanupDirectory(
@@ -513,9 +585,13 @@ class FirestoreService {
   }
 
   String? _existingBusinessLocalPath(String id) {
+    return _existingBusinessById(id)?.localImagePath;
+  }
+
+  BusinessItem? _existingBusinessById(String id) {
     for (final item in _businesses) {
       if (item.id == id) {
-        return item.localImagePath;
+        return item;
       }
     }
     return null;
@@ -545,7 +621,8 @@ class FirestoreService {
     for (final item in _businesses) {
       final repaired = await _repairBusinessImage(item);
       repairedBusinesses.add(repaired);
-      if (repaired.localImagePath != item.localImagePath) {
+      if (repaired.localImagePath != item.localImagePath ||
+          !listEquals(repaired.localGalleryPaths, item.localGalleryPaths)) {
         businessesChanged = true;
       }
     }
@@ -574,11 +651,66 @@ class FirestoreService {
       return item;
     }
 
-    if (item.localImagePath != null && File(item.localImagePath!).existsSync()) {
-      return item;
+    if (item.localImagePath == null || !File(item.localImagePath!).existsSync()) {
+      item = await _prepareBusinessImage(item);
     }
 
-    return _prepareBusinessImage(item);
+    if (item.galleryUrls.isNotEmpty) {
+      final galleryCountMatches =
+          item.localGalleryPaths.length == item.galleryUrls.length;
+      final hasMissingGalleryFiles = item.localGalleryPaths.any(
+        (path) => path.trim().isNotEmpty && !File(path).existsSync(),
+      );
+
+      if (!galleryCountMatches || hasMissingGalleryFiles) {
+        item = await _prepareBusinessGallery(item);
+      }
+    }
+
+    return item;
+  }
+
+  Future<BusinessItem> _carryForwardBusinessGalleryState(
+    BusinessItem item,
+    BusinessItem? current,
+  ) async {
+    if (current == null) {
+      return item.copyWith(
+        localGalleryPaths: List<String>.filled(item.galleryUrls.length, ''),
+      );
+    }
+
+    final previousGalleryMap = <String, String>{};
+    for (var index = 0; index < current.galleryUrls.length; index++) {
+      final remoteUrl = current.galleryUrls[index].trim();
+      if (remoteUrl.isEmpty) {
+        continue;
+      }
+
+      final localPath =
+          index < current.localGalleryPaths.length ? current.localGalleryPaths[index] : '';
+      previousGalleryMap[remoteUrl] = localPath;
+    }
+
+    final nextLocalGalleryPaths = <String>[];
+    final retainedUrls = item.galleryUrls.map((url) => url.trim()).toSet();
+
+    for (final remoteUrl in item.galleryUrls) {
+      nextLocalGalleryPaths.add(previousGalleryMap[remoteUrl.trim()] ?? '');
+    }
+
+    for (var index = 0; index < current.galleryUrls.length; index++) {
+      final previousUrl = current.galleryUrls[index].trim();
+      if (previousUrl.isEmpty || retainedUrls.contains(previousUrl)) {
+        continue;
+      }
+
+      final stalePath =
+          index < current.localGalleryPaths.length ? current.localGalleryPaths[index] : '';
+      await _deleteImageFile(stalePath);
+    }
+
+    return item.copyWith(localGalleryPaths: nextLocalGalleryPaths);
   }
 
   void _mergeCategories(List<CategoryItem> changedItems) {
@@ -639,7 +771,33 @@ class FirestoreService {
     }
     return null;
   }
+
+  Future<void> ensureBusinessGalleryReady(String negocioId) async {
+    await initialize();
+
+    final current = businessById(negocioId);
+    if (current == null || current.galleryUrls.isEmpty) {
+      return;
+    }
+
+    final prepared = await _prepareBusinessGallery(current);
+    if (listEquals(prepared.localGalleryPaths, current.localGalleryPaths)) {
+      return;
+    }
+
+    final merged = <BusinessItem>[];
+    for (final item in _businesses) {
+      merged.add(item.id == prepared.id ? prepared : item);
+    }
+
+    _businesses = merged..sort((a, b) => a.nombre.compareTo(b.nombre));
+    final box = Hive.box<Map<dynamic, dynamic>>(_businessesBoxName);
+    await box.put(prepared.id, prepared.toMap());
+    await _cleanupOrphanedImages();
+  }
 }
+
+const Object _noChange = Object();
 
 class CategoryItem {
   const CategoryItem({
@@ -750,6 +908,8 @@ class BusinessItem {
     required this.instagram,
     required this.imageUrl,
     required this.localImagePath,
+    required this.galleryUrls,
+    required this.localGalleryPaths,
     required this.productosServicios,
     required this.coordenadas,
     required this.categoryPath,
@@ -766,6 +926,8 @@ class BusinessItem {
   final String instagram;
   final String imageUrl;
   final String? localImagePath;
+  final List<String> galleryUrls;
+  final List<String> localGalleryPaths;
   final List<String> productosServicios;
   final GeoPoint? coordenadas;
   final String? categoryPath;
@@ -774,6 +936,22 @@ class BusinessItem {
 
   String get preferredImagePath =>
       (localImagePath?.trim().isNotEmpty ?? false) ? localImagePath! : imageUrl;
+
+  List<String> get preferredGalleryPaths {
+    final resolved = <String>[];
+    for (var index = 0; index < galleryUrls.length; index++) {
+      final localPath =
+          index < localGalleryPaths.length ? localGalleryPaths[index].trim() : '';
+      final remoteUrl = galleryUrls[index].trim();
+
+      if (localPath.isNotEmpty) {
+        resolved.add(localPath);
+      } else if (remoteUrl.isNotEmpty) {
+        resolved.add(remoteUrl);
+      }
+    }
+    return List.unmodifiable(resolved);
+  }
 
   factory BusinessItem.fromDocument(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
@@ -793,6 +971,12 @@ class BusinessItem {
       instagram: (data['instagram'] ?? '') as String,
       imageUrl: ((data['image'] ?? data['imagen']) ?? '') as String,
       localImagePath: null,
+      galleryUrls: ((data['galeria'] as List<dynamic>?) ?? [])
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .take(5)
+          .toList(growable: false),
+      localGalleryPaths: const [],
       productosServicios: ((data['productos_servicios'] as List<dynamic>?) ?? [])
           .map((item) => item.toString().trim())
           .where((item) => item.isNotEmpty)
@@ -820,6 +1004,16 @@ class BusinessItem {
       instagram: (data['instagram'] ?? '') as String,
       imageUrl: (data['imageUrl'] ?? '') as String,
       localImagePath: data['localImagePath'] as String?,
+      galleryUrls: ((data['galleryUrls'] as List<dynamic>?) ?? [])
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .take(5)
+          .toList(growable: false),
+      localGalleryPaths:
+          ((data['localGalleryPaths'] as List<dynamic>?) ?? [])
+              .map((item) => item.toString())
+              .take(5)
+              .toList(growable: false),
       productosServicios: ((data['productosServicios'] as List<dynamic>?) ?? [])
           .map((item) => item.toString().trim())
           .where((item) => item.isNotEmpty)
@@ -847,6 +1041,8 @@ class BusinessItem {
       'instagram': instagram,
       'imageUrl': imageUrl,
       'localImagePath': localImagePath,
+      'galleryUrls': galleryUrls,
+      'localGalleryPaths': localGalleryPaths,
       'productosServicios': productosServicios,
       'coordenadas': coordenadas == null
           ? null
@@ -861,7 +1057,8 @@ class BusinessItem {
   }
 
   BusinessItem copyWith({
-    String? localImagePath,
+    Object? localImagePath = _noChange,
+    List<String>? localGalleryPaths,
   }) {
     return BusinessItem(
       id: id,
@@ -872,7 +1069,11 @@ class BusinessItem {
       facebook: facebook,
       instagram: instagram,
       imageUrl: imageUrl,
-      localImagePath: localImagePath,
+      localImagePath: identical(localImagePath, _noChange)
+          ? this.localImagePath
+          : localImagePath as String?,
+      galleryUrls: galleryUrls,
+      localGalleryPaths: localGalleryPaths ?? this.localGalleryPaths,
       productosServicios: productosServicios,
       coordenadas: coordenadas,
       categoryPath: categoryPath,

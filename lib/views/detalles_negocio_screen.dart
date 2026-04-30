@@ -5,15 +5,57 @@ import 'package:mi_tianguis/services/firestore_service.dart';
 import 'package:mi_tianguis/widgets/shared/app_image_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class DetallesNegocioScreen extends StatelessWidget {
+class DetallesNegocioScreen extends StatefulWidget {
   const DetallesNegocioScreen({super.key});
+
+  @override
+  State<DetallesNegocioScreen> createState() => _DetallesNegocioScreenState();
+}
+
+class _DetallesNegocioScreenState extends State<DetallesNegocioScreen> {
+  String? _negocioId;
+  Future<void> _detailsFuture = Future<void>.value();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+    final negocioId = args?['negocioId'] as String?;
+
+    if (_negocioId == negocioId) {
+      return;
+    }
+
+    _negocioId = negocioId;
+    if (negocioId == null || negocioId.isEmpty) {
+      _detailsFuture = Future<void>.value();
+      return;
+    }
+
+    final service = FirestoreService.instance;
+    _detailsFuture = service.ensureSynchronized().then(
+          (_) => service.ensureBusinessGalleryReady(negocioId),
+        );
+  }
 
   void _openImageViewer(
     BuildContext context, {
     required String imageUrl,
     required String heroTag,
+    List<String>? galleryImages,
+    int initialIndex = 0,
   }) {
     if (imageUrl.trim().isEmpty) {
+      return;
+    }
+
+    final images = (galleryImages == null || galleryImages.isEmpty)
+        ? <String>[imageUrl]
+        : galleryImages.where((item) => item.trim().isNotEmpty).toList();
+
+    if (images.isEmpty) {
       return;
     }
 
@@ -23,7 +65,8 @@ class DetallesNegocioScreen extends StatelessWidget {
         barrierColor: Colors.black.withValues(alpha: 0.92),
         pageBuilder: (context, animation, secondaryAnimation) {
           return _FullscreenImageViewer(
-            imageUrl: imageUrl,
+            imageUrls: images,
+            initialIndex: initialIndex.clamp(0, images.length - 1),
             heroTag: heroTag,
           );
         },
@@ -217,9 +260,7 @@ class DetallesNegocioScreen extends StatelessWidget {
     final double screenWidth = MediaQuery.sizeOf(context).width;
     final bool isTablet = screenWidth >= 820;
     final double maxContentWidth = screenWidth >= 1300 ? 1160 : 980;
-    final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final String? negocioId = args?['negocioId'] as String?;
+    final String? negocioId = _negocioId;
 
     if (negocioId == null || negocioId.isEmpty) {
       return const Scaffold(
@@ -232,7 +273,7 @@ class DetallesNegocioScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F3EE),
       body: FutureBuilder<void>(
-        future: service.ensureSynchronized(),
+        future: _detailsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               service.businesses.isEmpty) {
@@ -264,6 +305,7 @@ class DetallesNegocioScreen extends StatelessWidget {
           final String facebook = business.facebook;
           final String instagram = business.instagram;
           final String imageUrl = business.preferredImagePath;
+          final List<String> galleryPaths = business.preferredGalleryPaths;
           final List<String> servicios = business.productosServicios;
 
           final GeoPoint? gp = business.coordenadas;
@@ -449,11 +491,14 @@ class DetallesNegocioScreen extends StatelessWidget {
                                     lng: lng ?? 0,
                                     nombre: nombre,
                                     descripcion: descripcion,
+                                    galleryPaths: galleryPaths,
+                                    negocioId: negocioId,
                                     servicios: servicios,
                                     openWhatsApp: _openWhatsApp,
                                     openFacebook: _openFacebook,
                                     openExternalLink: _openExternalLink,
                                     openInMaps: _openInMaps,
+                                    openImageViewer: _openImageViewer,
                                   ),
                                 ),
                                 const SizedBox(width: 18),
@@ -486,11 +531,14 @@ class DetallesNegocioScreen extends StatelessWidget {
                               lng: lng ?? 0,
                               nombre: nombre,
                               descripcion: descripcion,
+                              galleryPaths: galleryPaths,
+                              negocioId: negocioId,
                               servicios: servicios,
                               openWhatsApp: _openWhatsApp,
                               openFacebook: _openFacebook,
                               openExternalLink: _openExternalLink,
                               openInMaps: _openInMaps,
+                              openImageViewer: _openImageViewer,
                             ),
                     ),
                   ),
@@ -517,11 +565,14 @@ class _DetailsContent extends StatelessWidget {
     required this.lng,
     required this.nombre,
     required this.descripcion,
+    required this.galleryPaths,
+    required this.negocioId,
     required this.servicios,
     required this.openWhatsApp,
     required this.openFacebook,
     required this.openExternalLink,
     required this.openInMaps,
+    required this.openImageViewer,
   });
 
   final bool hasWhatsApp;
@@ -535,11 +586,20 @@ class _DetailsContent extends StatelessWidget {
   final double lng;
   final String nombre;
   final String descripcion;
+  final List<String> galleryPaths;
+  final String negocioId;
   final List<String> servicios;
   final Future<void> Function(BuildContext, String) openWhatsApp;
   final Future<void> Function(BuildContext, String) openFacebook;
   final Future<void> Function(BuildContext, String) openExternalLink;
   final Future<void> Function(double, double, {String? label}) openInMaps;
+  final void Function(
+    BuildContext, {
+    required String imageUrl,
+    required String heroTag,
+    List<String>? galleryImages,
+    int initialIndex,
+  }) openImageViewer;
 
   @override
   Widget build(BuildContext context) {
@@ -611,6 +671,65 @@ class _DetailsContent extends StatelessWidget {
             ),
           ),
         ),
+        if (galleryPaths.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _InfoSection(
+            title: 'Galer\u00eda',
+            icon: Icons.photo_library_outlined,
+            child: SizedBox(
+              height: 132,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: galleryPaths.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final imagePath = galleryPaths[index];
+                  final heroTag = 'gallery-$negocioId-$index';
+
+                  return GestureDetector(
+                    onTap: () => openImageViewer(
+                      context,
+                      imageUrl: imagePath,
+                      heroTag: heroTag,
+                      galleryImages: galleryPaths,
+                      initialIndex: index,
+                    ),
+                    child: Hero(
+                      tag: heroTag,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          width: 164,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFE6DA),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: const Color(0xFFE2D5C3),
+                            ),
+                          ),
+                          child: AppImageView(
+                            imagePath: imagePath,
+                            fit: BoxFit.cover,
+                            placeholderColor: const Color(0xFFE9E1D5),
+                            fallback: Container(
+                              color: const Color(0xFF355C4A),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.image_not_supported_outlined,
+                                color: Colors.white70,
+                                size: 30,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
         if (servicios.isNotEmpty) ...[
           const SizedBox(height: 16),
           _InfoSection(
@@ -763,11 +882,13 @@ class _DetailsAside extends StatelessWidget {
 
 class _FullscreenImageViewer extends StatefulWidget {
   const _FullscreenImageViewer({
-    required this.imageUrl,
+    required this.imageUrls,
+    required this.initialIndex,
     required this.heroTag,
   });
 
-  final String imageUrl;
+  final List<String> imageUrls;
+  final int initialIndex;
   final String heroTag;
 
   @override
@@ -775,17 +896,39 @@ class _FullscreenImageViewer extends StatefulWidget {
 }
 
 class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
-  final TransformationController _transformationController =
-      TransformationController();
+  late final PageController _pageController;
+  late int _currentIndex;
+  final Map<int, TransformationController> _controllers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
 
   @override
   void dispose() {
-    _transformationController.dispose();
+    _pageController.dispose();
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   void _resetZoom() {
-    _transformationController.value = Matrix4.identity();
+    _controllerFor(_currentIndex).value = Matrix4.identity();
+  }
+
+  TransformationController _controllerFor(int index) {
+    return _controllers.putIfAbsent(index, TransformationController.new);
+  }
+
+  void _handlePageChanged(int index) {
+    _resetZoom();
+    setState(() {
+      _currentIndex = index;
+    });
   }
 
   @override
@@ -804,39 +947,78 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
             child: Stack(
               children: [
                 Center(
-                  child: GestureDetector(
-                    onDoubleTap: _resetZoom,
-                    child: InteractiveViewer(
-                      minScale: 0.8,
-                      maxScale: 4,
-                      panEnabled: true,
-                      scaleEnabled: true,
-                      transformationController: _transformationController,
-                      child: Hero(
-                        tag: widget.heroTag,
-                        child: AppImageView(
-                          imagePath: widget.imageUrl,
-                          fit: BoxFit.contain,
-                          placeholderColor: Colors.transparent,
-                          fallback: Container(
-                            width: 260,
-                            height: 260,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF355C4A),
-                              borderRadius: BorderRadius.circular(24),
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: _handlePageChanged,
+                    itemCount: widget.imageUrls.length,
+                    itemBuilder: (context, index) {
+                      final imagePath = widget.imageUrls[index];
+                      final currentHeroTag =
+                          widget.imageUrls.length == 1 ||
+                                  index == widget.initialIndex
+                              ? widget.heroTag
+                              : '${widget.heroTag}-$index';
+
+                      return GestureDetector(
+                        onDoubleTap: _resetZoom,
+                        child: InteractiveViewer(
+                          minScale: 0.8,
+                          maxScale: 4,
+                          panEnabled: true,
+                          scaleEnabled: true,
+                          transformationController: _controllerFor(index),
+                          child: Hero(
+                            tag: currentHeroTag,
+                            child: AppImageView(
+                              imagePath: imagePath,
+                              fit: BoxFit.contain,
+                              placeholderColor: Colors.transparent,
+                              fallback: Container(
+                                width: 260,
+                                height: 260,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF355C4A),
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: const Icon(
+                                  Icons.broken_image_outlined,
+                                  color: Colors.white70,
+                                  size: 56,
+                                ),
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.broken_image_outlined,
-                              color: Colors.white70,
-                              size: 56,
-                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (widget.imageUrls.length > 1)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 24,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.42),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${_currentIndex + 1} / ${widget.imageUrls.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
                 Positioned(
                   top: 12,
                   right: 12,
