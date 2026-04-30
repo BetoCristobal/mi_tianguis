@@ -1,7 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mi_tianguis/services/firestore_service.dart';
 import 'package:mi_tianguis/widgets/main/product_grid.dart';
 import 'package:mi_tianguis/widgets/shared/app_image_view.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PrincipalScreen extends StatefulWidget {
   const PrincipalScreen({super.key});
@@ -16,6 +19,7 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
   final FirestoreService _firestoreService = FirestoreService.instance;
   Future<void> _syncFuture = Future.value();
   String _query = '';
+  bool _hasCheckedAppVersion = false;
 
   void _showSyncInfo() {
     final categoriesSync = _firestoreService.categoriesLastSync;
@@ -62,6 +66,9 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
   void initState() {
     super.initState();
     _syncFuture = _firestoreService.ensureSynchronized();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAppVersionIfNeeded();
+    });
   }
 
   @override
@@ -194,6 +201,12 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
                     child: FutureBuilder<void>(
                       future: _syncFuture,
                       builder: (context, snapshot) {
+                        if (snapshot.connectionState != ConnectionState.waiting) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _checkAppVersionIfNeeded();
+                          });
+                        }
+
                         return Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: isTablet ? horizontalPadding : 10,
@@ -228,6 +241,100 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
       ),
     );
   }
+
+  Future<void> _checkAppVersionIfNeeded() async {
+    if (!mounted || _hasCheckedAppVersion) {
+      return;
+    }
+
+    _hasCheckedAppVersion = true;
+
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final installedVersion = packageInfo.version.trim();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('app_meta')
+          .doc('app_version')
+          .get(const GetOptions(source: Source.server));
+
+      final data = snapshot.data();
+      if (data == null) {
+        return;
+      }
+
+      final latestVersion = (data['latestVersion'] ?? '').toString().trim();
+      final minRequiredVersion =
+          (data['minRequiredVersion'] ?? '').toString().trim();
+      final updateMessage = (data['updateMessage'] ?? '').toString().trim();
+      final playStoreUrl = (data['playStoreUrl'] ?? '').toString().trim();
+
+      if (latestVersion.isEmpty || playStoreUrl.isEmpty) {
+        return;
+      }
+
+      final isBelowMinimum =
+          minRequiredVersion.isNotEmpty &&
+          _compareVersions(installedVersion, minRequiredVersion) < 0;
+      final hasUpdateAvailable =
+          _compareVersions(installedVersion, latestVersion) < 0;
+
+      if (!hasUpdateAvailable && !isBelowMinimum) {
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: !isBelowMinimum,
+        builder: (context) {
+          return PopScope(
+            canPop: !isBelowMinimum,
+            child: AlertDialog(
+              title: Text(
+                isBelowMinimum
+                    ? 'Actualización requerida'
+                    : 'Actualización disponible',
+              ),
+              content: Text(
+                updateMessage.isEmpty
+                    ? (isBelowMinimum
+                          ? 'Necesitas actualizar la app para seguir usándola.'
+                          : 'Hay una nueva versión disponible.')
+                    : updateMessage,
+              ),
+              actions: [
+                if (!isBelowMinimum)
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Después'),
+                  ),
+                FilledButton(
+                  onPressed: () async {
+                    final uri = Uri.parse(playStoreUrl);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                    if (!isBelowMinimum && context.mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text('Actualizar'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (_) {
+      _hasCheckedAppVersion = false;
+    }
+  }
 }
 
 String _formatSyncDate(DateTime? value) {
@@ -238,6 +345,23 @@ String _formatSyncDate(DateTime? value) {
   String twoDigits(int number) => number.toString().padLeft(2, '0');
 
   return '${twoDigits(value.day)}/${twoDigits(value.month)}/${value.year} ${twoDigits(value.hour)}:${twoDigits(value.minute)}';
+}
+
+int _compareVersions(String a, String b) {
+  final aParts = a.split('.').map((item) => int.tryParse(item) ?? 0).toList();
+  final bParts = b.split('.').map((item) => int.tryParse(item) ?? 0).toList();
+  final maxLength = aParts.length > bParts.length ? aParts.length : bParts.length;
+
+  for (var index = 0; index < maxLength; index++) {
+    final aValue = index < aParts.length ? aParts[index] : 0;
+    final bValue = index < bParts.length ? bParts[index] : 0;
+
+    if (aValue != bValue) {
+      return aValue.compareTo(bValue);
+    }
+  }
+
+  return 0;
 }
 
 class _SearchShell extends StatelessWidget {
