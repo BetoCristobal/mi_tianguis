@@ -1,21 +1,21 @@
 name: mi_tianguis
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.3+4
+version: 1.0.6+7
 
 environment:
-  sdk: ^3.6.2
+  sdk: '^3.6.2'
 
 dependencies:
   cached_network_image: ^3.4.1
-  cloud_firestore: ^5.6.8
-  firebase_core: ^3.13.1
-  firebase_storage: ^12.4.6
-  font_awesome_flutter: ^10.8.0
+  cloud_firestore: ^6.4.0
+  firebase_core: ^4.8.0
+  firebase_storage: ^13.4.0
+  font_awesome_flutter: ^11.0.0
   flutter:
     sdk: flutter
   hive_flutter: ^1.1.0
-  package_info_plus: ^8.3.0
+  package_info_plus: ^9.0.1
   path_provider: ^2.1.5
   provider: ^6.1.5
   shared_preferences: ^2.5.3
@@ -25,8 +25,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true

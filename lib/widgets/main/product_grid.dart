@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mi_tianguis/services/firestore_service.dart';
 import 'package:mi_tianguis/widgets/shared/app_image_view.dart';
@@ -83,17 +82,6 @@ class ProductGrid extends StatelessWidget {
                               fontSize: 24,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF1F1F1F),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(
-                            'Selecciona una categoría para abrir negocios locales registrados.',
-                            style: TextStyle(
-                              color: Color(0xFF5D6470),
-                              height: 1.45,
                             ),
                           ),
                         ),
@@ -333,14 +321,6 @@ class _FeaturedCategoryCard extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            category.description,
-                            style: const TextStyle(
-                              color: Color(0xFFF5F5F5),
-                              height: 1.35,
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -464,17 +444,6 @@ class _CategoryCatalogCard extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF182028),
                           height: 1.15,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        category.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          color: Color(0xFF48515B),
-                          height: 1.4,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -623,28 +592,24 @@ class _GridStatusView extends StatelessWidget {
 
 class _CategoryItem {
   const _CategoryItem({
+    required this.id,
     required this.titulo,
-    required this.reference,
     required this.image,
     required this.color,
-    required this.description,
   });
-
+  final String id;
   final String titulo;
-  final DocumentReference<Map<String, dynamic>> reference;
   final String image;
   final Color color;
-  final String description;
 
   String get displayTitle => _capitalizeWords(titulo);
 
   factory _CategoryItem.fromCategory(CategoryItem item) {
     return _CategoryItem(
+      id: item.id,
       titulo: item.titulo,
-      reference: item.reference,
       image: item.preferredImagePath,
       color: item.color,
-      description: item.description,
     );
   }
 }
@@ -656,7 +621,7 @@ void _openCategory(BuildContext context, _CategoryItem category) {
     'listaNegocios',
     arguments: {
       'productTitulo': category.displayTitle,
-      'categoriaRef': category.reference,
+      'categoriaId': category.id,
     },
   );
 }
@@ -674,3 +639,4 @@ String _capitalizeWords(String value) {
     return '${word[0].toUpperCase()}${word.substring(1)}';
   }).join(' ');
 }
+

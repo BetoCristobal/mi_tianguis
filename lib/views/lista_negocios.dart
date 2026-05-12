@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mi_tianguis/services/firestore_service.dart';
 import 'package:mi_tianguis/widgets/shared/app_image_view.dart';
@@ -17,10 +16,10 @@ class ListaNegocios extends StatelessWidget {
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final String titulo = args['productTitulo'] as String? ?? 'Categoría';
-    final DocumentReference<Map<String, dynamic>>? categoriaRef =
-        args['categoriaRef'] as DocumentReference<Map<String, dynamic>>?;
+    final String categoriaId =
+        args['categoriaId'] as String? ?? '';
 
-    if (categoriaRef == null) {
+    if (categoriaId.trim().isEmpty) {
       return const _ListaStatusView(
         titulo: 'Categoría',
         icon: Icons.category_outlined,
@@ -48,7 +47,7 @@ class ListaNegocios extends StatelessWidget {
             );
           }
 
-          final docs = service.businessesForCategory(categoriaRef);
+          final docs = service.businessesForCategory(categoriaId);
 
           if (docs.isEmpty) {
             return _ListaStatusView(
@@ -714,3 +713,4 @@ class _ListaStatusView extends StatelessWidget {
     );
   }
 }
+

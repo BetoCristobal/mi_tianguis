@@ -21,47 +21,6 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
   String _query = '';
   bool _hasCheckedAppVersion = false;
 
-  void _showSyncInfo() {
-    final categoriesSync = _firestoreService.categoriesLastSync;
-    final businessesSync = _firestoreService.businessesLastSync;
-
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Última sincronización'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Categorías: ${_formatSyncDate(categoriesSync)}',
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Negocios: ${_formatSyncDate(businessesSync)}',
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Usa esta referencia para saber qué hora ya detectó la app.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF6C6F76),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cerrar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -95,34 +54,6 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleSpacing: 18,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: IconButton(
-              tooltip: 'Información',
-              onPressed: _showSyncInfo,
-              icon: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromRGBO(53, 54, 66, 0.08),
-                      blurRadius: 14,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.info_outline_rounded,
-                  color: Color(0xFF1B4332),
-                ),
-              ),
-            ),
-          ),
-        ],
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -335,33 +266,32 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
       _hasCheckedAppVersion = false;
     }
   }
-}
 
-String _formatSyncDate(DateTime? value) {
-  if (value == null) {
-    return 'Sin sincronización';
-  }
+  int _compareVersions(String current, String target) {
+    final currentParts = current
+        .split('.')
+        .map((part) => int.tryParse(part.trim()) ?? 0)
+        .toList(growable: false);
+    final targetParts = target
+        .split('.')
+        .map((part) => int.tryParse(part.trim()) ?? 0)
+        .toList(growable: false);
 
-  String twoDigits(int number) => number.toString().padLeft(2, '0');
+    final maxLength = currentParts.length > targetParts.length
+        ? currentParts.length
+        : targetParts.length;
 
-  return '${twoDigits(value.day)}/${twoDigits(value.month)}/${value.year} ${twoDigits(value.hour)}:${twoDigits(value.minute)}';
-}
+    for (var index = 0; index < maxLength; index++) {
+      final currentValue = index < currentParts.length ? currentParts[index] : 0;
+      final targetValue = index < targetParts.length ? targetParts[index] : 0;
 
-int _compareVersions(String a, String b) {
-  final aParts = a.split('.').map((item) => int.tryParse(item) ?? 0).toList();
-  final bParts = b.split('.').map((item) => int.tryParse(item) ?? 0).toList();
-  final maxLength = aParts.length > bParts.length ? aParts.length : bParts.length;
-
-  for (var index = 0; index < maxLength; index++) {
-    final aValue = index < aParts.length ? aParts[index] : 0;
-    final bValue = index < bParts.length ? bParts[index] : 0;
-
-    if (aValue != bValue) {
-      return aValue.compareTo(bValue);
+      if (currentValue != targetValue) {
+        return currentValue.compareTo(targetValue);
+      }
     }
-  }
 
-  return 0;
+    return 0;
+  }
 }
 
 class _SearchShell extends StatelessWidget {
@@ -806,3 +736,4 @@ String _normalizeSearchText(String value) {
       .replaceAll('û', 'u')
       .replaceAll('ñ', 'n');
 }
+

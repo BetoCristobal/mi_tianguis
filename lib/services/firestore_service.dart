@@ -755,12 +755,21 @@ class FirestoreService {
       ..sort((a, b) => a.nombre.compareTo(b.nombre));
   }
 
-  List<BusinessItem> businessesForCategory(
-    DocumentReference<Map<String, dynamic>> categoriaRef,
-  ) {
-    return _businesses
-        .where((item) => item.categoryPath == categoriaRef.path)
-        .toList(growable: false);
+  List<BusinessItem> businessesForCategory(String categoriaId) {
+    final normalizedCategoryId = categoriaId.trim();
+    if (normalizedCategoryId.isEmpty) {
+      return const [];
+    }
+
+    return _businesses.where((item) {
+      if (item.categoriaId.trim().isNotEmpty) {
+        return item.categoriaId == normalizedCategoryId;
+      }
+
+      final legacyCategoryPath = item.categoryPath?.trim() ?? '';
+      return legacyCategoryPath == 'categorias/$normalizedCategoryId' ||
+          legacyCategoryPath == '/categorias/$normalizedCategoryId';
+    }).toList(growable: false);
   }
 
   BusinessItem? businessById(String negocioId) {
@@ -912,6 +921,9 @@ class BusinessItem {
     required this.localGalleryPaths,
     required this.productosServicios,
     required this.coordenadas,
+    required this.categoriaId,
+    required this.categoriaTitulo,
+    required this.categoriaSlug,
     required this.categoryPath,
     required this.activo,
     required this.actualizadoMillis,
@@ -930,6 +942,9 @@ class BusinessItem {
   final List<String> localGalleryPaths;
   final List<String> productosServicios;
   final GeoPoint? coordenadas;
+  final String categoriaId;
+  final String categoriaTitulo;
+  final String? categoriaSlug;
   final String? categoryPath;
   final bool activo;
   final int actualizadoMillis;
@@ -960,6 +975,10 @@ class BusinessItem {
     final updatedAt = data['actualizado'] as Timestamp?;
     final categoryRef =
         data['categoria'] as DocumentReference<Map<String, dynamic>>?;
+    final rawCategoryId = (data['categoria_id'] ?? '').toString().trim();
+    final resolvedCategoryId = rawCategoryId.isNotEmpty
+        ? rawCategoryId
+        : (categoryRef?.id ?? '');
 
     return BusinessItem(
       id: doc.id,
@@ -982,6 +1001,11 @@ class BusinessItem {
           .where((item) => item.isNotEmpty)
           .toList(growable: false),
       coordenadas: data['coordenadas'] as GeoPoint?,
+      categoriaId: resolvedCategoryId,
+      categoriaTitulo: (data['categoria_titulo'] ?? '') as String,
+      categoriaSlug: ((data['categoria_slug'] ?? '') as String).trim().isEmpty
+          ? null
+          : (data['categoria_slug'] as String),
       categoryPath: categoryRef?.path,
       activo: (data['activo'] ?? true) as bool,
       actualizadoMillis: updatedAt?.millisecondsSinceEpoch ?? 0,
@@ -1024,6 +1048,9 @@ class BusinessItem {
               (coordinatesMap['latitude'] as num).toDouble(),
               (coordinatesMap['longitude'] as num).toDouble(),
             ),
+      categoriaId: (data['categoriaId'] ?? '') as String,
+      categoriaTitulo: (data['categoriaTitulo'] ?? '') as String,
+      categoriaSlug: data['categoriaSlug'] as String?,
       categoryPath: data['categoryPath'] as String?,
       activo: (data['activo'] ?? true) as bool,
       actualizadoMillis: (data['actualizadoMillis'] ?? 0) as int,
@@ -1050,6 +1077,9 @@ class BusinessItem {
               'latitude': coordenadas!.latitude,
               'longitude': coordenadas!.longitude,
             },
+      'categoriaId': categoriaId,
+      'categoriaTitulo': categoriaTitulo,
+      'categoriaSlug': categoriaSlug,
       'categoryPath': categoryPath,
       'activo': activo,
       'actualizadoMillis': actualizadoMillis,
@@ -1076,6 +1106,9 @@ class BusinessItem {
       localGalleryPaths: localGalleryPaths ?? this.localGalleryPaths,
       productosServicios: productosServicios,
       coordenadas: coordenadas,
+      categoriaId: categoriaId,
+      categoriaTitulo: categoriaTitulo,
+      categoriaSlug: categoriaSlug,
       categoryPath: categoryPath,
       activo: activo,
       actualizadoMillis: actualizadoMillis,
